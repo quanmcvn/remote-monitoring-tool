@@ -1,0 +1,52 @@
+#ifndef CLIENT_PROCESS_TABLE_HPP
+#define CLIENT_PROCESS_TABLE_HPP
+
+#include <unordered_map>
+
+#include "client/process_listing.hpp"
+#include "client/process_stat.hpp"
+
+// for use in ProcessTable, has additional fields not suitable for storing
+class ProcessMeta {
+public:
+	ProcessListing process_listing;
+	bool seen;
+};
+
+// for use in ProcessTable, has additional field to compute usage
+class ProcessLastStat {
+public:
+	std::uint64_t total_cpu_usage = 0;
+	DiskStat disk_stat;
+};
+
+class ProcessTable {
+private:
+	std::unordered_map<std::uint32_t, ProcessMeta> list_table;
+	std::unordered_map<std::uint32_t, ProcessStat> stat_table;
+	std::unordered_map<std::uint32_t, ProcessLastStat> last_stat_table;
+public:
+	enum ProcessSortType {
+		CPU,
+		MEM,
+		DISK_READ,
+		DISK_WRITE,
+		NETWORK_RECV,
+		NETWORK_SEND
+	};
+	struct ProcessFullStat {
+		std::uint32_t pid;
+		const ProcessMeta* meta;
+		const ProcessStat* stat;
+		ProcessFullStat() {}
+		ProcessFullStat(std::uint32_t n_pid, const ProcessMeta* n_meta, const ProcessStat* n_stat) :
+			pid(n_pid), meta(n_meta), stat(n_stat)
+		{}
+	};
+	// update stat_table, additionally change list_table if process died/spawned
+	void update_table();
+	std::string display_table() const;
+	std::vector<ProcessFullStat> get_sorted(ProcessSortType type, std::uint32_t limit = 100) const;
+};
+
+#endif
