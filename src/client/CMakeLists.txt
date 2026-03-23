@@ -2,6 +2,7 @@ add_library(client_lib)
 target_sources(client_lib
 	PRIVATE
 		client.cpp
+		network_processing.cpp
 		process_listing.cpp
 		process_table.cpp
 )
@@ -26,4 +27,6 @@ target_link_libraries(client
 
 if (WIN32)
 	target_link_libraries(client_lib PUBLIC ws2_32)
+else()
+	target_link_libraries(client_lib PUBLIC pcap)
 endif()

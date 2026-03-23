@@ -20,6 +20,7 @@
 #include <iostream>
 #include <unistd.h>
 
+
 namespace {
 
 // reusable buffer for reading all kind of stuff
@@ -173,7 +174,7 @@ static DiskStat read_pid_io(std::uint32_t pid) {
 		return disk_stat;
 	char *p = buffer;
 	int line = 1;
-	std::cerr << "pid: " << pid << " buffer: " << buffer << "\n\n";
+	// std::cerr << "pid: " << pid << " buffer: " << buffer << "\n\n";
 	while (line <= 6) {
 		if (line == 5 || line == 6) {
 			while (*p != ' ')
@@ -209,37 +210,70 @@ static std::uint64_t parse_socket_inode(const std::string &link) {
 	return number;
 }
 
-static std::vector<std::uint64_t> get_socket_inode_list(std::uint32_t pid) {
+static std::vector<std::uint32_t> get_socket_inode_list(std::uint32_t pid) {
 	std::filesystem::path fd_path = "/proc/" + std::to_string(pid) + "/fd";
-	std::vector<uint64_t> sockets;
-	for (auto &entry : std::filesystem::directory_iterator(fd_path)) {
-		try {
-			std::string link = std::filesystem::read_symlink(entry.path()).string();
-			std::uint64_t inode = parse_socket_inode(link);
-			if (inode) {
-				sockets.push_back(inode);
+	std::vector<uint32_t> sockets;
+	try {
+		for (auto &entry : std::filesystem::directory_iterator(fd_path)) {
+			try {
+				std::string link = std::filesystem::read_symlink(entry.path()).string();
+				std::uint32_t inode = parse_socket_inode(link);
+				if (inode) {
+					sockets.push_back(inode);
+				}
+			} catch (const std::filesystem::filesystem_error &e) {
+				continue;
 			}
-		} catch (const std::filesystem::filesystem_error &e) {
-			continue;
 		}
+	} catch (const std::filesystem::filesystem_error& e) {
+		std::cerr << e.what() << "\n";
 	}
 	return sockets;
 }
 
-// static std::unordered_map<std::uint64_t, NetworkStat> parse_net_tcp() {
-// 	std::ifstream tcp("/proc/net/tcp");
-// 	std::string line;
-// 	std::getline(tcp, line); // skip header
+struct SocketInode {
+	std::uint32_t inode;
+	std::uint32_t local_ip;
+	std::uint16_t local_port;
+	std::uint32_t rem_ip;
+	std::uint16_t rem_port;
+};
 
-// 	while (std::getline(tcp, line)) {
-// 		std::istringstream iss(line);
-// 		std::string local, rem, st;
-// 		std::uint64_t txq, rxq;
-// 		std::uint64_t inode;
-// 		std::string dummy;
-// 		iss >> dummy >> local >> rem >> st >> dummy >> dummy >> dummy >> dummy >> dummy >> inode;
-// 	}
-// }
+static std::unordered_map<std::uint32_t, SocketInode> parse_net_tcp() {
+	std::ifstream tcp("/proc/net/tcp");
+	std::string line;
+	std::getline(tcp, line); // skip header
+	std::unordered_map<std::uint32_t, SocketInode> ret;
+
+	while (std::getline(tcp, line)) {
+		std::istringstream iss(line);
+		SocketInode inode;
+		std::string dummy;
+		char dummy_char;
+
+		iss >> dummy;
+
+		iss >> std::hex >> inode.local_ip;
+
+		// loop back 
+		if ((inode.local_ip & 0xff) == 127) {
+			continue;
+		}
+
+		iss >> dummy_char; // ':'
+		iss >> std::hex >> inode.local_port;
+		
+		iss >> std::hex >> inode.rem_ip;
+		iss >> dummy_char; // ':'
+		iss >> std::hex >> inode.rem_port;
+		for (int i = 4; i <= 9; ++ i) {
+			iss >> dummy;
+		}
+		iss >> std::dec >> inode.inode;
+		ret[inode.inode] = std::move(inode);
+	}
+	return ret;
+}
 
 static std::vector<std::uint32_t> list_pids() {
 	const std::filesystem::path proc_path("/proc");
@@ -277,6 +311,23 @@ void ProcessTable::update_table() {
 	}
 
 	std::vector<std::uint32_t> pids = list_pids();
+	std::unordered_map<std::uint32_t, SocketInode> inode_list_all = parse_net_tcp();
+	// parse /proc/pid/fd for socket inode of pid, then parse /proc/net/tcp for inode list, then combine for port -> pid map
+	std::unordered_map<std::uint16_t, std::uint32_t> port_to_pid_map;
+	for (std::uint32_t pid : pids) {
+		std::vector<std::uint32_t> inode_list_of_pid = get_socket_inode_list(pid);
+		if (inode_list_of_pid.empty()) continue;
+		for (const auto& inode : inode_list_of_pid) {
+			auto it = inode_list_all.find(inode);
+			if (it != inode_list_all.end()) {
+				port_to_pid_map[it->second.local_port] = pid;
+			}
+		}
+	}
+	std::unordered_map<std::uint32_t, NetworkStat> pid_network_usage;
+	std::uint32_t local_ip = inode_list_all.begin()->second.local_ip;
+	pid_network_usage = this->pcap_handler.process_packets(local_ip, port_to_pid_map);
+
 	for (std::uint32_t pid : pids) {
 		auto &process_meta = this->list_table[pid];
 		try {
@@ -319,7 +370,7 @@ void ProcessTable::update_table() {
 			}
 			process_last_stat.disk_stat = disk_stat;
 			process_stat.disk_usage = current_disk_delta;
-
+			process_stat.network_usage = pid_network_usage[pid];
 			process_meta.seen = true;
 		} catch (std::exception &e) {
 			std::cerr << e.what() << "\n";
@@ -343,7 +394,7 @@ std::string ProcessTable::display_table() const {
 	std::string res;
 	res.reserve(max_char_per_line * (num_lines + 1) + 100);
 	res += "\033[H\033[J";
-	auto fullstat_table = this->get_sorted(ProcessTable::ProcessSortType::DISK_WRITE, num_lines);
+	auto fullstat_table = this->get_sorted(ProcessTable::ProcessSortType::NETWORK_SEND, num_lines);
 #define FORMAT_STRING "{:<7} {:<10} {:<13} {:<10} {:<10} {:<10} {:<10} {:<20} {:<40}"
 	res += std::format(FORMAT_STRING, "pid", "cpu", "mem", "disk read", "disk write", "net recv",
 	                   "net send", "programm", "cmdline");
@@ -355,10 +406,16 @@ std::string ProcessTable::display_table() const {
 		std::string disk_write = stat->disk_usage.disk_write.has_value()
 		                             ? std::to_string(stat->disk_usage.disk_write.value())
 		                             : "N/A";
+		std::string network_recv = stat->network_usage.network_recv.has_value()
+		                            ? std::to_string(stat->network_usage.network_recv.value())
+		                            : "N/A";
+		std::string network_send = stat->network_usage.network_send.has_value()
+		                             ? std::to_string(stat->network_usage.network_send.value())
+		                             : "N/A";
 		std::string line =
 		    std::format(FORMAT_STRING, pid, static_cast<double>(stat->cpu_usage_percent) / CPU_UNIT,
-		                stat->mem_usage, disk_read, disk_write, stat->network_usage.network_recv,
-		                stat->network_usage.network_send, meta->process_listing.get_process_name(),
+		                stat->mem_usage, disk_read, disk_write, network_recv,
+		                network_send, meta->process_listing.get_process_name(),
 		                meta->process_listing.get_args_as_string());
 		if (line.size() > max_char_per_line)
 			line.resize(max_char_per_line);
@@ -410,11 +467,31 @@ static auto get_comparator(ProcessTable::ProcessSortType type) {
 				return lhs.stat->disk_usage.disk_write > rhs.stat->disk_usage.disk_write;
 			break;
 		case ProcessTable::ProcessSortType::NETWORK_RECV:
-			if (lhs.stat->network_usage.network_recv != rhs.stat->network_usage.network_recv)
+			if (lhs.stat->network_usage.network_recv.has_value() &&
+			    !rhs.stat->network_usage.network_recv.has_value()) {
+				return true;
+			}
+			if (!lhs.stat->network_usage.network_recv.has_value() &&
+			    rhs.stat->network_usage.network_recv.has_value()) {
+				return false;
+			}
+			if (lhs.stat->network_usage.network_recv.has_value() &&
+			    rhs.stat->network_usage.network_recv.has_value() &&
+			    lhs.stat->network_usage.network_recv.value() != rhs.stat->network_usage.network_recv.value())
 				return lhs.stat->network_usage.network_recv > rhs.stat->network_usage.network_recv;
 			break;
 		case ProcessTable::ProcessSortType::NETWORK_SEND:
-			if (lhs.stat->network_usage.network_send != rhs.stat->network_usage.network_send)
+			if (lhs.stat->network_usage.network_send.has_value() &&
+			    !rhs.stat->network_usage.network_send.has_value()) {
+				return true;
+			}
+			if (!lhs.stat->network_usage.network_send.has_value() &&
+			    rhs.stat->network_usage.network_send.has_value()) {
+				return false;
+			}
+			if (lhs.stat->network_usage.network_send.has_value() &&
+			    rhs.stat->network_usage.network_send.has_value() &&
+			    lhs.stat->network_usage.network_send.value() != rhs.stat->network_usage.network_send.value())
 				return lhs.stat->network_usage.network_send > rhs.stat->network_usage.network_send;
 			break;
 		}

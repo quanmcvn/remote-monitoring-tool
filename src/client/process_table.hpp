@@ -5,6 +5,7 @@
 
 #include "client/process_listing.hpp"
 #include "client/process_stat.hpp"
+#include "client/network_processing.hpp"
 
 // for use in ProcessTable, has additional fields not suitable for storing
 class ProcessMeta {
@@ -25,6 +26,7 @@ private:
 	std::unordered_map<std::uint32_t, ProcessMeta> list_table;
 	std::unordered_map<std::uint32_t, ProcessStat> stat_table;
 	std::unordered_map<std::uint32_t, ProcessLastStat> last_stat_table;
+	PcapHandler pcap_handler;
 public:
 	enum ProcessSortType {
 		CPU,

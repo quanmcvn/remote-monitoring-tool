@@ -20,8 +20,8 @@ struct DiskStat {
 };
 
 struct NetworkStat {
-	std::uint64_t network_recv = 0;
-	std::uint64_t network_send = 0;
+	std::optional<std::uint64_t> network_recv = std::nullopt;
+	std::optional<std::uint64_t> network_send = std::nullopt;
 };
 
 struct ProcessStat {
