@@ -7,13 +7,6 @@
 #include "client/process_stat.hpp"
 #include "client/network_processing.hpp"
 
-// for use in ProcessTable, has additional fields not suitable for storing
-class ProcessMeta {
-public:
-	ProcessListing process_listing;
-	bool seen;
-};
-
 // for use in ProcessTable, has additional field to compute usage
 class ProcessLastStat {
 public:
@@ -23,7 +16,7 @@ public:
 
 class ProcessTable {
 private:
-	std::unordered_map<std::uint32_t, ProcessMeta> list_table;
+	std::unordered_map<std::uint32_t, ProcessListing> list_table;
 	std::unordered_map<std::uint32_t, ProcessStat> stat_table;
 	std::unordered_map<std::uint32_t, ProcessLastStat> last_stat_table;
 	PcapHandler pcap_handler;
@@ -38,10 +31,10 @@ public:
 	};
 	struct ProcessFullStat {
 		std::uint32_t pid;
-		const ProcessMeta* meta;
+		const ProcessListing* meta;
 		const ProcessStat* stat;
 		ProcessFullStat() {}
-		ProcessFullStat(std::uint32_t n_pid, const ProcessMeta* n_meta, const ProcessStat* n_stat) :
+		ProcessFullStat(std::uint32_t n_pid, const ProcessListing* n_meta, const ProcessStat* n_stat) :
 			pid(n_pid), meta(n_meta), stat(n_stat)
 		{}
 	};

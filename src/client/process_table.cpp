@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <filesystem>
 #include <stdexcept>
+#include <iostream>
+#include <format>
 
 #include "common/global.hpp"
 
@@ -15,11 +17,8 @@
 #include <assert.h>
 #include <charconv>
 #include <fcntl.h>
-#include <format>
 #include <fstream>
-#include <iostream>
 #include <unistd.h>
-
 
 namespace {
 
@@ -225,7 +224,7 @@ static std::vector<std::uint32_t> get_socket_inode_list(std::uint32_t pid) {
 				continue;
 			}
 		}
-	} catch (const std::filesystem::filesystem_error& e) {
+	} catch (const std::filesystem::filesystem_error &e) {
 		std::cerr << e.what() << "\n";
 	}
 	return sockets;
@@ -255,18 +254,18 @@ static std::unordered_map<std::uint32_t, SocketInode> parse_net_tcp() {
 
 		iss >> std::hex >> inode.local_ip;
 
-		// loop back 
+		// loop back
 		if ((inode.local_ip & 0xff) == 127) {
 			continue;
 		}
 
 		iss >> dummy_char; // ':'
 		iss >> std::hex >> inode.local_port;
-		
+
 		iss >> std::hex >> inode.rem_ip;
 		iss >> dummy_char; // ':'
 		iss >> std::hex >> inode.rem_port;
-		for (int i = 4; i <= 9; ++ i) {
+		for (int i = 4; i <= 9; ++i) {
 			iss >> dummy;
 		}
 		iss >> std::dec >> inode.inode;
@@ -306,18 +305,21 @@ void ProcessTable::update_table() {
 	}
 	last_cpu = now_cpu;
 
-	for (auto &[pid, p] : this->list_table) {
-		p.seen = false;
+	std::unordered_map<std::uint32_t, bool> seen;
+	for (auto &[pid, _] : this->list_table) {
+		seen[pid] = true;
 	}
 
 	std::vector<std::uint32_t> pids = list_pids();
 	std::unordered_map<std::uint32_t, SocketInode> inode_list_all = parse_net_tcp();
-	// parse /proc/pid/fd for socket inode of pid, then parse /proc/net/tcp for inode list, then combine for port -> pid map
+	// parse /proc/pid/fd for socket inode of pid, then parse /proc/net/tcp for inode list, then
+	// combine for port -> pid map
 	std::unordered_map<std::uint16_t, std::uint32_t> port_to_pid_map;
 	for (std::uint32_t pid : pids) {
 		std::vector<std::uint32_t> inode_list_of_pid = get_socket_inode_list(pid);
-		if (inode_list_of_pid.empty()) continue;
-		for (const auto& inode : inode_list_of_pid) {
+		if (inode_list_of_pid.empty())
+			continue;
+		for (const auto &inode : inode_list_of_pid) {
 			auto it = inode_list_all.find(inode);
 			if (it != inode_list_all.end()) {
 				port_to_pid_map[it->second.local_port] = pid;
@@ -329,13 +331,13 @@ void ProcessTable::update_table() {
 	pid_network_usage = this->pcap_handler.process_packets(local_ip, port_to_pid_map);
 
 	for (std::uint32_t pid : pids) {
-		auto &process_meta = this->list_table[pid];
+		auto &process_listing = this->list_table[pid];
 		try {
-			if (process_meta.process_listing.get_args().empty()) {
-				process_meta.process_listing = read_process_metadata(pid);
+			if (process_listing.get_args().empty()) {
+				process_listing = std::move(read_process_metadata(pid));
 			}
 			// if it can't read then it is probably kernel thread
-			if (process_meta.process_listing.get_args().empty())
+			if (process_listing.get_args().empty())
 				continue;
 			auto &process_stat = this->stat_table[pid];
 			auto &process_last_stat = this->last_stat_table[pid];
@@ -371,14 +373,14 @@ void ProcessTable::update_table() {
 			process_last_stat.disk_stat = disk_stat;
 			process_stat.disk_usage = current_disk_delta;
 			process_stat.network_usage = pid_network_usage[pid];
-			process_meta.seen = true;
+			seen[pid] = true;
 		} catch (std::exception &e) {
 			std::cerr << e.what() << "\n";
 		}
 	}
 
 	for (auto it = this->list_table.begin(); it != this->list_table.end();) {
-		if (it->second.seen == false) {
+		if (seen[it->first] == false) {
 			this->stat_table.erase(it->first);
 			this->last_stat_table.erase(it->first);
 			it = this->list_table.erase(it);
@@ -387,6 +389,8 @@ void ProcessTable::update_table() {
 		}
 	}
 }
+
+#endif
 
 std::string ProcessTable::display_table() const {
 	constexpr uint32_t max_char_per_line = 140; // arbitrarily chosen
@@ -399,7 +403,7 @@ std::string ProcessTable::display_table() const {
 	res += std::format(FORMAT_STRING, "pid", "cpu", "mem", "disk read", "disk write", "net recv",
 	                   "net send", "programm", "cmdline");
 	res += "\n";
-	for (const auto &[pid, meta, stat] : fullstat_table) {
+	for (const auto &[pid, listing, stat] : fullstat_table) {
 		std::string disk_read = stat->disk_usage.disk_read.has_value()
 		                            ? std::to_string(stat->disk_usage.disk_read.value())
 		                            : "N/A";
@@ -407,16 +411,15 @@ std::string ProcessTable::display_table() const {
 		                             ? std::to_string(stat->disk_usage.disk_write.value())
 		                             : "N/A";
 		std::string network_recv = stat->network_usage.network_recv.has_value()
-		                            ? std::to_string(stat->network_usage.network_recv.value())
-		                            : "N/A";
+		                               ? std::to_string(stat->network_usage.network_recv.value())
+		                               : "N/A";
 		std::string network_send = stat->network_usage.network_send.has_value()
-		                             ? std::to_string(stat->network_usage.network_send.value())
-		                             : "N/A";
-		std::string line =
-		    std::format(FORMAT_STRING, pid, static_cast<double>(stat->cpu_usage_percent) / CPU_UNIT,
-		                stat->mem_usage, disk_read, disk_write, network_recv,
-		                network_send, meta->process_listing.get_process_name(),
-		                meta->process_listing.get_args_as_string());
+		                               ? std::to_string(stat->network_usage.network_send.value())
+		                               : "N/A";
+		std::string line = std::format(
+		    FORMAT_STRING, pid, static_cast<double>(stat->cpu_usage_percent) / CPU_UNIT,
+		    stat->mem_usage, disk_read, disk_write, network_recv, network_send,
+		    listing->get_process_name(), listing->get_args_as_string());
 		if (line.size() > max_char_per_line)
 			line.resize(max_char_per_line);
 		res += line;
@@ -477,7 +480,8 @@ static auto get_comparator(ProcessTable::ProcessSortType type) {
 			}
 			if (lhs.stat->network_usage.network_recv.has_value() &&
 			    rhs.stat->network_usage.network_recv.has_value() &&
-			    lhs.stat->network_usage.network_recv.value() != rhs.stat->network_usage.network_recv.value())
+			    lhs.stat->network_usage.network_recv.value() !=
+			        rhs.stat->network_usage.network_recv.value())
 				return lhs.stat->network_usage.network_recv > rhs.stat->network_usage.network_recv;
 			break;
 		case ProcessTable::ProcessSortType::NETWORK_SEND:
@@ -491,7 +495,8 @@ static auto get_comparator(ProcessTable::ProcessSortType type) {
 			}
 			if (lhs.stat->network_usage.network_send.has_value() &&
 			    rhs.stat->network_usage.network_send.has_value() &&
-			    lhs.stat->network_usage.network_send.value() != rhs.stat->network_usage.network_send.value())
+			    lhs.stat->network_usage.network_send.value() !=
+			        rhs.stat->network_usage.network_send.value())
 				return lhs.stat->network_usage.network_send > rhs.stat->network_usage.network_send;
 			break;
 		}
@@ -503,14 +508,12 @@ std::vector<ProcessTable::ProcessFullStat> ProcessTable::get_sorted(ProcessSortT
                                                                     std::uint32_t limit) const {
 
 	std::vector<ProcessTable::ProcessFullStat> ret;
-	for (const auto &[pid, meta] : this->list_table) {
+	for (const auto &[pid, listing] : this->list_table) {
 		const auto &stat = this->stat_table.at(pid);
-		ret.push_back(std::move(ProcessTable::ProcessFullStat(pid, &meta, &stat)));
+		ret.push_back(std::move(ProcessTable::ProcessFullStat(pid, &listing, &stat)));
 	}
 	limit = std::min(limit, static_cast<std::uint32_t>(ret.size()));
 	std::partial_sort(ret.begin(), ret.begin() + limit, ret.end(), get_comparator(type));
 	ret.resize(limit);
 	return ret;
 }
-
-#endif
