@@ -10,7 +10,182 @@
 
 #ifdef _WIN32
 
-// NYI
+#include <windows.h>
+#include <tlhelp32.h>
+#include <psapi.h>
+#include <iphlpapi.h>
+#include <winsock2.h>
+
+namespace {
+
+inline std::uint64_t filetime_to_uint64_t(const FILETIME &ft) {
+	return ((std::uint64_t)ft.dwHighDateTime << 32) | ft.dwLowDateTime;
+}
+
+std::uint64_t get_system_total_cpu() {
+	FILETIME idle, kernel, user;
+	if (!GetSystemTimes(&idle, &kernel, &user)) {
+		return 0;
+	}
+	return filetime_to_uint64_t(kernel) + filetime_to_uint64_t(user);
+}
+
+std::uint64_t get_process_total_cpu(HANDLE hProcess) {
+	FILETIME create, exit, kernel, user;
+	if (!GetProcessTimes(hProcess, &create, &exit, &kernel, &user)) {
+		return 0;
+	}
+	return filetime_to_uint64_t(kernel) + filetime_to_uint64_t(user);
+}
+
+std::uint64_t get_process_memory(HANDLE hProcess) {
+	PROCESS_MEMORY_COUNTERS pmc;
+	if (!GetProcessMemoryInfo(hProcess, &pmc, sizeof(pmc))) {
+		return 0;
+	}
+	return pmc.WorkingSetSize;
+}
+
+DiskStat get_process_total_disk_usage(HANDLE hProcess) {
+	IO_COUNTERS io;
+	DiskStat disk_usage;
+	if (!GetProcessIoCounters(hProcess, &io)) {
+		return disk_usage;
+	}
+	disk_usage.disk_read = io.ReadTransferCount;
+	disk_usage.disk_write = io.WriteTransferCount;
+	return disk_usage;
+}
+
+std::vector<std::uint32_t> get_list_pids() {
+	HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+	PROCESSENTRY32W pe;
+	pe.dwSize = sizeof(pe);
+	std::vector<std::uint32_t> list_pids;
+	if (Process32FirstW(snapshot, &pe)) {
+		do {
+			list_pids.push_back(pe.th32ProcessID);
+		} while (Process32NextW(snapshot, &pe));
+	}
+	CloseHandle(snapshot);
+	return list_pids;
+}
+
+struct SocketPid {
+	std::uint32_t pid;
+	std::uint32_t local_ip;
+	std::uint16_t local_port;
+	std::uint32_t rem_ip;
+	std::uint16_t rem_port;
+};
+
+std::vector<SocketPid> get_list_socket_pid() {
+	DWORD size = 0;
+	GetExtendedTcpTable(NULL, &size, FALSE, AF_INET, TCP_TABLE_OWNER_PID_ALL, 0);
+	PMIB_TCPTABLE_OWNER_PID tcpTable = (PMIB_TCPTABLE_OWNER_PID)malloc(size);
+
+	std::vector<SocketPid> list_socket_pid;
+
+	if (GetExtendedTcpTable(tcpTable, &size, FALSE, AF_INET, TCP_TABLE_OWNER_PID_ALL, 0) ==
+	    NO_ERROR) {
+		for (DWORD i = 0; i < tcpTable->dwNumEntries; ++i) {
+			auto &row = tcpTable->table[i];
+			SocketPid socket_pid;
+			socket_pid.pid = row.dwOwningPid;
+			socket_pid.local_ip = row.dwLocalAddr;
+			socket_pid.rem_ip = row.dwRemoteAddr;
+			socket_pid.local_port = ntohs((u_short)row.dwLocalPort);
+			socket_pid.rem_port = ntohs((u_short)row.dwRemotePort);
+			if (socket_pid.local_ip == 0)
+				continue;
+			if ((socket_pid.local_ip & 0xff) == 127)
+				continue;
+			list_socket_pid.push_back(socket_pid);
+		}
+	}
+
+	free(tcpTable);
+	return list_socket_pid;
+}
+
+} // namespace
+
+void ProcessTable::update_table() {
+	std::unordered_map<std::uint32_t, bool> seen;
+
+	static std::uint64_t last_system_cpu = 0;
+	std::uint64_t system_cpu = get_system_total_cpu();
+	std::uint64_t system_cpu_delta = system_cpu - last_system_cpu;
+	last_system_cpu = system_cpu;
+	if (system_cpu_delta == 0) {
+		system_cpu_delta = 1;
+	}
+
+	std::vector<std::uint32_t> list_pids = get_list_pids();
+
+	std::vector<SocketPid> list_socket_pid = get_list_socket_pid();
+
+	std::unordered_map<std::uint16_t, std::uint32_t> port_to_pid_map;
+	for (const auto &socket_pid : list_socket_pid) {
+		port_to_pid_map[socket_pid.local_port] = socket_pid.pid;
+	}
+	std::unordered_map<std::uint32_t, NetworkStat> pid_network_usage;
+	std::uint32_t local_ip = list_socket_pid.begin()->local_ip;
+	pid_network_usage = this->pcap_handler.process_packets(local_ip, port_to_pid_map);
+
+	for (const auto &pid : list_pids) {
+		// skip reading cmdline for now
+		auto &process_listing = this->list_table[pid];
+		auto &process_stat = this->stat_table[pid];
+		auto &process_last_stat = this->last_stat_table[pid];
+
+		HANDLE hProcess = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, pid);
+
+		if (hProcess) {
+			std::uint64_t total_cpu = get_process_total_cpu(hProcess);
+			std::uint64_t mem = get_process_memory(hProcess);
+			DiskStat disk_stat = get_process_total_disk_usage(hProcess);
+
+			std::uint64_t current_cpu_delta = total_cpu - process_last_stat.total_cpu_usage;
+			process_last_stat.total_cpu_usage = total_cpu;
+			std::uint32_t current_cpu_percent = static_cast<double>(current_cpu_delta) /
+			                                    static_cast<double>(system_cpu_delta) * 100 *
+			                                    CPU_UNIT;
+			process_stat.cpu_usage_percent = current_cpu_percent;
+
+			process_stat.mem_usage = mem;
+
+			DiskStat current_disk_delta;
+			if (disk_stat.disk_read.has_value()) {
+				current_disk_delta.disk_read =
+				    disk_stat.disk_read.value() -
+				    process_last_stat.disk_stat.disk_read.value_or<std::uint64_t>(0);
+			}
+			if (disk_stat.disk_write.has_value()) {
+				current_disk_delta.disk_write =
+				    disk_stat.disk_write.value() -
+				    process_last_stat.disk_stat.disk_write.value_or<std::uint64_t>(0);
+			}
+			process_last_stat.disk_stat = disk_stat;
+			process_stat.disk_usage = current_disk_delta;
+			process_stat.network_usage = pid_network_usage[pid];
+
+			CloseHandle(hProcess);
+		}
+
+		seen[pid] = true;
+	}
+
+	for (auto it = this->list_table.begin(); it != this->list_table.end();) {
+		if (seen[it->first] == false) {
+			this->stat_table.erase(it->first);
+			this->last_stat_table.erase(it->first);
+			it = this->list_table.erase(it);
+		} else {
+			++it;
+		}
+	}
+}
 
 #else
 
@@ -76,6 +251,11 @@ static ProcessListing read_process_metadata(std::uint32_t pid) {
 
 	return ProcessListing(pid, std::move(program_name), std::move(cmdline));
 }
+
+struct CpuMemStat {
+	std::uint64_t total_cpu_usage = 0;
+	std::uint64_t mem_usage = 0;
+};
 
 static CpuMemStat read_pid_stat_cpu_mem(std::uint32_t pid) {
 	ssize_t stat_read = read_file("/proc/" + std::to_string(pid) + "/stat");
@@ -306,9 +486,6 @@ void ProcessTable::update_table() {
 	last_cpu = now_cpu;
 
 	std::unordered_map<std::uint32_t, bool> seen;
-	for (auto &[pid, _] : this->list_table) {
-		seen[pid] = true;
-	}
 
 	std::vector<std::uint32_t> pids = list_pids();
 	std::unordered_map<std::uint32_t, SocketInode> inode_list_all = parse_net_tcp();
@@ -397,8 +574,15 @@ std::string ProcessTable::display_table() const {
 	constexpr uint32_t num_lines = 30;          // arbitrarily chosen
 	std::string res;
 	res.reserve(max_char_per_line * (num_lines + 1) + 100);
+#ifdef _WIN32
+	HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
+	DWORD dwMode = 0;
+	GetConsoleMode(hOut, &dwMode);
+	dwMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+	SetConsoleMode(hOut, dwMode);
+#endif
 	res += "\033[H\033[J";
-	auto fullstat_table = this->get_sorted(ProcessTable::ProcessSortType::NETWORK_SEND, num_lines);
+	auto fullstat_table = this->get_sorted(ProcessTable::ProcessSortType::NETWORK_RECV, num_lines);
 #define FORMAT_STRING "{:<7} {:<10} {:<13} {:<10} {:<10} {:<10} {:<10} {:<20} {:<40}"
 	res += std::format(FORMAT_STRING, "pid", "cpu", "mem", "disk read", "disk write", "net recv",
 	                   "net send", "programm", "cmdline");
@@ -416,10 +600,10 @@ std::string ProcessTable::display_table() const {
 		std::string network_send = stat->network_usage.network_send.has_value()
 		                               ? std::to_string(stat->network_usage.network_send.value())
 		                               : "N/A";
-		std::string line = std::format(
-		    FORMAT_STRING, pid, static_cast<double>(stat->cpu_usage_percent) / CPU_UNIT,
-		    stat->mem_usage, disk_read, disk_write, network_recv, network_send,
-		    listing->get_process_name(), listing->get_args_as_string());
+		std::string line =
+		    std::format(FORMAT_STRING, pid, static_cast<double>(stat->cpu_usage_percent) / CPU_UNIT,
+		                stat->mem_usage, disk_read, disk_write, network_recv, network_send,
+		                listing->get_process_name(), listing->get_args_as_string());
 		if (line.size() > max_char_per_line)
 			line.resize(max_char_per_line);
 		res += line;

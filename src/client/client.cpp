@@ -2,10 +2,10 @@
 
 #include <iostream>
 #include <string>
+#include <thread>
 
 #include "client/process_table.hpp"
 #include "common/util.hpp"
-#include <thread>
 
 #define SERVER_IP "127.0.0.1"
 #define SERVER_PORT 12345

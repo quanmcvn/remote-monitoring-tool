@@ -3,12 +3,6 @@
 
 #include <cstdint>
 #include <optional>
-
-struct CpuMemStat {
-	std::uint64_t total_cpu_usage = 0;
-	std::uint64_t mem_usage = 0;
-};
-
 struct CpuStat {
 	std::uint64_t cpu_usage = 0;
 	std::uint64_t cpu_idle = 0;
