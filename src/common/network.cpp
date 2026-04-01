@@ -19,9 +19,13 @@ void network_close_socket(socket_t socket) {
 
 #else
 
+#include <signal.h>
+
 typedef int socket_t;
 
 int network_init() {
+	// we will ignore SIGPIPE here, a good place
+	signal(SIGPIPE, SIG_IGN);
 	return 0;
 }
 

@@ -6,10 +6,13 @@
 #include "common/error.hpp"
 #include "common/network.hpp"
 #include "common/util.hpp"
+#include "common/serializable.hpp"
 
 #define PORT 12345
 
 int server_main(int argc, char* argv[]) {
+	network_init();
+
 	int chosen_port = PORT;
 	for (int i = 1; i < argc; ++i) {
 		std::string arg = std::string(argv[i]);
@@ -68,9 +71,12 @@ int server_main(int argc, char* argv[]) {
 	std::cout << "client connected!\n";
 	std::cout << client_address_ip << " " << client_addr.sin_port << "\n";
 
-	while (true) {
-		
-	}
+	std::string client_message = SerializableHelper::recv_message(client_socket);
+	std::cerr << "client says: " << client_message << "\n";
+	std::string message = "hello from server";
+	SerializableHelper::send_message(client_socket, message);
+
+	network_cleanup();
 
 	return 0;
 }

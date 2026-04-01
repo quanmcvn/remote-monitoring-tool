@@ -2,9 +2,11 @@ add_library(client_lib)
 target_sources(client_lib
 	PRIVATE
 		client.cpp
+		exponential_backoff.cpp
 		network_processing.cpp
 		process_listing.cpp
 		process_table.cpp
+		server_connector.cpp
 )
 target_include_directories(client_lib
 	PUBLIC
