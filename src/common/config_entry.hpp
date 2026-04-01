@@ -33,5 +33,11 @@ public:
 	// change config to match real unit before a write
 	// X /= X_UNIT
 	void convert_before_write();
+
+	std::string get_process_name() const;
+	std::uint32_t get_cpu_usage() const;
+	std::uint64_t get_mem_usage() const;
+	std::uint64_t get_disk_usage() const;
+	std::uint64_t get_network_usage() const;
 };
 #endif

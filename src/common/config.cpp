@@ -67,10 +67,15 @@ int Config::read_config() {
 
 Config Config::default_config() {
 	Config ret;
+	ret.config_entries.emplace_back("test_prog", 1, 11, 1, 1);
 	ret.config_entries.emplace_back("chrome.exe", 10, 200, 1, 500);
 	ret.config_entries.emplace_back("devenv.exe", 50, 100, 10, 100);
 	for (auto& config_entry : ret.config_entries) {
 		config_entry.convert_after_read();
 	}
 	return ret;
+}
+
+const std::vector<ConfigEntry>& Config::get_config_entries() const {
+	return this->config_entries;
 }

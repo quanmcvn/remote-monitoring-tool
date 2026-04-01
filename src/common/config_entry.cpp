@@ -1,7 +1,7 @@
 #include "common/config_entry.hpp"
 
-#include "common/serializable.hpp"
 #include "common/global.hpp"
+#include "common/serializable.hpp"
 
 ConfigEntry::ConfigEntry() {}
 
@@ -40,3 +40,9 @@ void ConfigEntry::convert_before_write() {
 	this->disk_usage /= DISK_UNIT;
 	this->network_usage /= NETWORK_UNIT;
 }
+
+std::string ConfigEntry::get_process_name() const { return this->process_name; };
+std::uint32_t ConfigEntry::get_cpu_usage() const { return this->cpu_usage; };
+std::uint64_t ConfigEntry::get_mem_usage() const { return this->mem_usage; };
+std::uint64_t ConfigEntry::get_disk_usage() const { return this->disk_usage; };
+std::uint64_t ConfigEntry::get_network_usage() const { return this->network_usage; };

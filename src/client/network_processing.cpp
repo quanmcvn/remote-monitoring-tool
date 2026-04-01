@@ -82,8 +82,6 @@ std::unordered_map<std::uint32_t, NetworkStat> PcapHandler::process_packets(
 			// std::cerr << "at " << port_to_pid_map.at(src_port) << "\n";
 			auto it = port_to_pid_map.find(src_port);
 			if (it == port_to_pid_map.end()) {
-				std::cerr << "port_to_pid_map: can't find which out going port " << src_port
-				          << " maps to\n";
 				continue;
 			}
 			auto &network_usage = pid_network_map[it->second];
@@ -93,8 +91,6 @@ std::unordered_map<std::uint32_t, NetworkStat> PcapHandler::process_packets(
 			// in going
 			auto it = port_to_pid_map.find(dst_port);
 			if (it == port_to_pid_map.end()) {
-				std::cerr << "port_to_pid_map: can't find which in going port " << dst_port
-				          << " maps to\n";
 				continue;
 			}
 			auto &network_usage = pid_network_map[it->second];
@@ -166,8 +162,6 @@ std::unordered_map<std::uint32_t, NetworkStat> PcapHandler::process_packets(
 			// std::cerr << "at " << port_to_pid_map.at(src_port) << "\n";
 			auto it = port_to_pid_map.find(src_port);
 			if (it == port_to_pid_map.end()) {
-				std::cerr << "port_to_pid_map: can't find which out going port " << src_port
-				          << " maps to\n";
 				continue;
 			}
 			auto &network_usage = pid_network_map[it->second];
@@ -177,8 +171,6 @@ std::unordered_map<std::uint32_t, NetworkStat> PcapHandler::process_packets(
 			// in going
 			auto it = port_to_pid_map.find(dst_port);
 			if (it == port_to_pid_map.end()) {
-				std::cerr << "port_to_pid_map: can't find which in going port " << dst_port
-				          << " maps to\n";
 				continue;
 			}
 			auto &network_usage = pid_network_map[it->second];

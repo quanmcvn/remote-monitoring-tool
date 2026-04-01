@@ -705,8 +705,24 @@ std::vector<ProcessTable::ProcessFullStat> ProcessTable::get_sorted(ProcessSortT
 		const auto &stat = this->stat_table.at(pid);
 		ret.push_back(std::move(ProcessTable::ProcessFullStat(pid, &listing, &stat)));
 	}
-	limit = std::min(limit, static_cast<std::uint32_t>(ret.size()));
+	if (limit == 0) limit = static_cast<std::uint32_t>(ret.size());
+	else limit = std::min(limit, static_cast<std::uint32_t>(ret.size()));
 	std::partial_sort(ret.begin(), ret.begin() + limit, ret.end(), get_comparator(type));
 	ret.resize(limit);
 	return ret;
+}
+
+std::unordered_map<std::string, ProcessStat> ProcessTable::get_map_program_name_resource() const {
+	std::unordered_map<std::string, ProcessStat> process_name_to_total_resource;
+	for (const auto &[pid, listing] : this->list_table) {
+		const auto &stat = this->stat_table.at(pid);
+		auto& this_name = process_name_to_total_resource[listing.get_process_name()];
+		this_name.cpu_usage_percent += stat.cpu_usage_percent;
+		this_name.mem_usage += stat.mem_usage;
+		this_name.disk_usage.disk_read = this_name.disk_usage.disk_read.value_or(0) + stat.disk_usage.disk_read.value_or(0);
+		this_name.disk_usage.disk_write = this_name.disk_usage.disk_write.value_or(0) + stat.disk_usage.disk_write.value_or(0);
+		this_name.network_usage.network_recv = this_name.network_usage.network_recv.value_or(0) + stat.network_usage.network_recv.value_or(0);
+		this_name.network_usage.network_send = this_name.network_usage.network_send.value_or(0) + stat.network_usage.network_send.value_or(0);
+	}
+	return process_name_to_total_resource;
 }

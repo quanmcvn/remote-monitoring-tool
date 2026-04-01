@@ -16,6 +16,7 @@ public:
 	// read config from predefined path/registry
 	int read_config();
 	static Config default_config();
+	const std::vector<ConfigEntry>& get_config_entries() const;
 };
 
 #endif

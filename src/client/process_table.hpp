@@ -41,7 +41,9 @@ public:
 	// update stat_table, additionally change list_table if process died/spawned
 	void update_table();
 	std::string display_table() const;
-	std::vector<ProcessFullStat> get_sorted(ProcessSortType type, std::uint32_t limit = 100) const;
+	std::vector<ProcessFullStat> get_sorted(ProcessSortType type, std::uint32_t limit = 0) const;
+	// get a map from program name to full resource consumption (all processes with same name are grouped)
+	std::unordered_map<std::string, ProcessStat> get_map_program_name_resource() const;
 };
 
 #endif
