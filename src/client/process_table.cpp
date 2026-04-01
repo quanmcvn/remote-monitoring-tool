@@ -57,6 +57,12 @@ DiskStat get_process_total_disk_usage(HANDLE hProcess) {
 	return disk_usage;
 }
 
+std::string get_process_name(HANDLE hProcess) {
+	char process_name[MAX_PATH];
+	DWORD size = GetModuleBaseNameA(hProcess, NULL, process_name, MAX_PATH);
+	return std::string(process_name, process_name + size);
+}
+
 std::vector<std::uint32_t> get_list_pids() {
 	HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
 	PROCESSENTRY32W pe;
@@ -142,6 +148,9 @@ void ProcessTable::update_table() {
 		HANDLE hProcess = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, pid);
 
 		if (hProcess) {
+			if (process_listing.get_process_name().empty()) {
+				process_listing = std::move(ProcessListing(pid, get_process_name(hProcess), std::vector<std::string>()));
+			}
 			std::uint64_t total_cpu = get_process_total_cpu(hProcess);
 			std::uint64_t mem = get_process_memory(hProcess);
 			DiskStat disk_stat = get_process_total_disk_usage(hProcess);
@@ -582,7 +591,7 @@ std::string ProcessTable::display_table() const {
 	SetConsoleMode(hOut, dwMode);
 #endif
 	res += "\033[H\033[J";
-	auto fullstat_table = this->get_sorted(ProcessTable::ProcessSortType::NETWORK_RECV, num_lines);
+	auto fullstat_table = this->get_sorted(ProcessTable::ProcessSortType::MEM, num_lines);
 #define FORMAT_STRING "{:<7} {:<10} {:<13} {:<10} {:<10} {:<10} {:<10} {:<20} {:<40}"
 	res += std::format(FORMAT_STRING, "pid", "cpu", "mem", "disk read", "disk write", "net recv",
 	                   "net send", "programm", "cmdline");
