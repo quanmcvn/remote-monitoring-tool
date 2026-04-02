@@ -1,13 +1,13 @@
 #ifndef CLIENT_SERVER_CONNECTOR
 #define CLIENT_SERVER_CONNECTOR
 
-#include <string>
-#include <optional>
-#include <memory>
 #include <atomic>
+#include <memory>
+#include <optional>
+#include <string>
 
-#include "common/network.hpp"
 #include "client/exponential_backoff.hpp"
+#include "common/network.hpp"
 
 // holds connection to server, and only that
 // tries to reconnect if it's not connected
@@ -21,6 +21,7 @@ private:
 	bool try_connect();
 	// call try_connect() indefinitely (blocks)
 	void reconnect_indefinitely();
+
 public:
 	ServerConnector(const std::string& n_server_ip, int n_server_port);
 	~ServerConnector();

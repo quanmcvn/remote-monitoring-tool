@@ -7,6 +7,7 @@ private:
 	const int stop;
 	const int multipler;
 	int current_delay;
+
 public:
 	ExponentialBackoff();
 	ExponentialBackoff(int n_start, int n_stop, int n_multiplier);

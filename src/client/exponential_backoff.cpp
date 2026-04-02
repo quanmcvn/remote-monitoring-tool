@@ -1,8 +1,8 @@
 #include "client/exponential_backoff.hpp"
 
 #include <chrono>
-#include <thread>
 #include <iostream>
+#include <thread>
 
 ExponentialBackoff::ExponentialBackoff() : start(1), stop(30), multipler(2) {
 	current_delay = start;

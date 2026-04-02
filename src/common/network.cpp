@@ -9,13 +9,9 @@ int network_init() {
 	return WSAStartup(MAKEWORD(2, 2), &wsa);
 }
 
-void network_cleanup() {
-	WSACleanup();
-}
+void network_cleanup() { WSACleanup(); }
 
-void network_close_socket(socket_t socket) {
-	closesocket(socket);
-}
+void network_close_socket(socket_t socket) { closesocket(socket); }
 
 #else
 

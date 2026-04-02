@@ -5,14 +5,15 @@
 #include <thread>
 
 #include "client/process_table.hpp"
+#include "client/client_logger.hpp"
 #include "client/server_connector.hpp"
-#include "common/util.hpp"
 #include "common/config.hpp"
+#include "common/util.hpp"
 
 #define SERVER_IP "127.0.0.1"
 #define SERVER_PORT 12345
 
-int client_main(int argc, char *argv[]) {
+int client_main(int argc, char* argv[]) {
 	network_init();
 
 	std::string chosen_ip = SERVER_IP;
@@ -52,27 +53,12 @@ int client_main(int argc, char *argv[]) {
 	using clock = std::chrono::steady_clock;
 	auto next_time = clock::now();
 	Config config = Config::default_config();
+	ClientLogger logger(config, LogQueue("rmt-log.txt", "rmt-ack.txt"));
 	while (true) {
 		next_time += std::chrono::seconds(1);
 
 		table.update_table();
-		auto map = table.get_map_program_name_resource();
-		for (const auto& config_entry : config.get_config_entries()) {
-			std::string name = config_entry.get_process_name();
-			const auto& stat = map[name];
-			if (stat.cpu_usage_percent > config_entry.get_cpu_usage()) {
-				std::cerr << name << ": " <<  "cpu\n";
-			}
-			if (stat.mem_usage > config_entry.get_mem_usage()) {
-				std::cerr << name << ": " <<  "mem\n";
-			}
-			if (stat.disk_usage.disk_read.value_or(0) + stat.disk_usage.disk_write.value_or(0) > config_entry.get_disk_usage()) {
-				std::cerr << name << ": " <<  "disk\n";
-			}
-			if (stat.network_usage.network_recv.value_or(0) + stat.network_usage.network_send.value_or(0) > config_entry.get_network_usage()) {
-				std::cerr << name << ": " <<  "net\n";
-			}
-		}
+		logger.generate_log(table);
 		std::string dis = table.display_table();
 		std::cout << dis;
 

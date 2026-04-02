@@ -25,35 +25,35 @@ std::int32_t SerializableHelper::swap_endian(std::int32_t value) {
 	return static_cast<std::int32_t>(u);
 }
 
-void SerializableHelper::write_uint32(std::ostream &os, std::uint32_t value) {
+void SerializableHelper::write_uint32(std::ostream& os, std::uint32_t value) {
 	std::uint32_t be = SerializableHelper::swap_endian(value);
-	os.write(reinterpret_cast<const char *>(&be), sizeof(be));
+	os.write(reinterpret_cast<const char*>(&be), sizeof(be));
 }
 
-std::uint32_t SerializableHelper::read_uint32(std::istream &is) {
+std::uint32_t SerializableHelper::read_uint32(std::istream& is) {
 	std::uint32_t be;
-	is.read(reinterpret_cast<char *>(&be), sizeof(be));
+	is.read(reinterpret_cast<char*>(&be), sizeof(be));
 	if (!is) {
 		throw std::runtime_error("read failed");
 	}
 	return SerializableHelper::swap_endian(be);
 }
 
-void SerializableHelper::write_uint64(std::ostream &os, std::uint64_t value) {
+void SerializableHelper::write_uint64(std::ostream& os, std::uint64_t value) {
 	std::uint64_t be = SerializableHelper::swap_endian(value);
-	os.write(reinterpret_cast<const char *>(&be), sizeof(be));
+	os.write(reinterpret_cast<const char*>(&be), sizeof(be));
 }
 
-std::uint64_t SerializableHelper::read_uint64(std::istream &is) {
+std::uint64_t SerializableHelper::read_uint64(std::istream& is) {
 	std::uint64_t be;
-	is.read(reinterpret_cast<char *>(&be), sizeof(be));
+	is.read(reinterpret_cast<char*>(&be), sizeof(be));
 	if (!is) {
 		throw std::runtime_error("read failed");
 	}
 	return SerializableHelper::swap_endian(be);
 }
 
-void SerializableHelper::write_string(std::ostream &os, const std::string &str) {
+void SerializableHelper::write_string(std::ostream& os, const std::string& str) {
 	if (str.size() > UINT32_MAX) {
 		throw std::runtime_error("string too large");
 	}
@@ -62,7 +62,7 @@ void SerializableHelper::write_string(std::ostream &os, const std::string &str) 
 	os.write(str.data(), str.size());
 }
 
-std::string SerializableHelper::read_string(std::istream &is) {
+std::string SerializableHelper::read_string(std::istream& is) {
 	std::uint32_t size = SerializableHelper::read_uint32(is);
 
 	std::string str(size, '\0');
@@ -70,17 +70,18 @@ std::string SerializableHelper::read_string(std::istream &is) {
 	if (!is) {
 		throw std::runtime_error("read failed");
 	}
-		
+
 	return str;
 }
 
-void SerializableHelper::write_vector_string(std::ostream& os, const std::vector<std::string>& vec) {
+void SerializableHelper::write_vector_string(std::ostream& os,
+                                             const std::vector<std::string>& vec) {
 	uint32_t count = static_cast<uint32_t>(vec.size());
 	uint32_t net_count = swap_endian(count);
 
 	os.write(reinterpret_cast<const char*>(&net_count), sizeof(net_count));
 
-	for (const auto &item : vec) {
+	for (const auto& item : vec) {
 		SerializableHelper::write_string(os, item);
 	}
 }
@@ -101,8 +102,8 @@ std::vector<std::string> SerializableHelper::read_vector_string(std::istream& is
 	return vec;
 }
 
-void SerializableHelper::send_exact(socket_t socket_fd, const void *data, size_t size) {
-	const char *buffer = static_cast<const char *>(data);
+void SerializableHelper::send_exact(socket_t socket_fd, const void* data, size_t size) {
+	const char* buffer = static_cast<const char*>(data);
 	size_t total_sent = 0;
 
 	while (total_sent < size) {
@@ -121,7 +122,8 @@ void SerializableHelper::recv_exact(socket_t socket_fd, const void* data, size_t
 	size_t total_received = 0;
 
 	while (total_received < size) {
-		ssize_t received = recv(socket_fd, static_cast<char*>(buffer) + total_received, size - total_received, 0);
+		ssize_t received =
+		    recv(socket_fd, static_cast<char*>(buffer) + total_received, size - total_received, 0);
 
 		if (received <= 0) {
 			throw std::runtime_error("recv failed");
@@ -131,7 +133,7 @@ void SerializableHelper::recv_exact(socket_t socket_fd, const void* data, size_t
 	}
 }
 
-void SerializableHelper::send_message(socket_t socket_fd, const std::string &payload) {
+void SerializableHelper::send_message(socket_t socket_fd, const std::string& payload) {
 	uint32_t size = static_cast<uint32_t>(payload.size());
 	uint32_t net_size = swap_endian(size);
 

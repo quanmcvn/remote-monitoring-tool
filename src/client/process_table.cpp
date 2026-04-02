@@ -2,23 +2,23 @@
 
 #include <algorithm>
 #include <filesystem>
-#include <stdexcept>
-#include <iostream>
 #include <format>
+#include <iostream>
+#include <stdexcept>
 
 #include "common/global.hpp"
 
 #ifdef _WIN32
 
-#include <windows.h>
-#include <tlhelp32.h>
-#include <psapi.h>
 #include <iphlpapi.h>
+#include <psapi.h>
+#include <tlhelp32.h>
+#include <windows.h>
 #include <winsock2.h>
 
 namespace {
 
-inline std::uint64_t filetime_to_uint64_t(const FILETIME &ft) {
+inline std::uint64_t filetime_to_uint64_t(const FILETIME& ft) {
 	return ((std::uint64_t)ft.dwHighDateTime << 32) | ft.dwLowDateTime;
 }
 
@@ -95,7 +95,7 @@ std::vector<SocketPid> get_list_socket_pid() {
 	if (GetExtendedTcpTable(tcpTable, &size, FALSE, AF_INET, TCP_TABLE_OWNER_PID_ALL, 0) ==
 	    NO_ERROR) {
 		for (DWORD i = 0; i < tcpTable->dwNumEntries; ++i) {
-			auto &row = tcpTable->table[i];
+			auto& row = tcpTable->table[i];
 			SocketPid socket_pid;
 			socket_pid.pid = row.dwOwningPid;
 			socket_pid.local_ip = row.dwLocalAddr;
@@ -132,24 +132,25 @@ void ProcessTable::update_table() {
 	std::vector<SocketPid> list_socket_pid = get_list_socket_pid();
 
 	std::unordered_map<std::uint16_t, std::uint32_t> port_to_pid_map;
-	for (const auto &socket_pid : list_socket_pid) {
+	for (const auto& socket_pid : list_socket_pid) {
 		port_to_pid_map[socket_pid.local_port] = socket_pid.pid;
 	}
 	std::unordered_map<std::uint32_t, NetworkStat> pid_network_usage;
 	std::uint32_t local_ip = list_socket_pid.begin()->local_ip;
 	pid_network_usage = this->pcap_handler.process_packets(local_ip, port_to_pid_map);
 
-	for (const auto &pid : list_pids) {
+	for (const auto& pid : list_pids) {
 		// skip reading cmdline for now
-		auto &process_listing = this->list_table[pid];
-		auto &process_stat = this->stat_table[pid];
-		auto &process_last_stat = this->last_stat_table[pid];
+		auto& process_listing = this->list_table[pid];
+		auto& process_stat = this->stat_table[pid];
+		auto& process_last_stat = this->last_stat_table[pid];
 
 		HANDLE hProcess = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, pid);
 
 		if (hProcess) {
 			if (process_listing.get_process_name().empty()) {
-				process_listing = std::move(ProcessListing(pid, get_process_name(hProcess), std::vector<std::string>()));
+				process_listing = std::move(
+				    ProcessListing(pid, get_process_name(hProcess), std::vector<std::string>()));
 			}
 			std::uint64_t total_cpu = get_process_total_cpu(hProcess);
 			std::uint64_t mem = get_process_memory(hProcess);
@@ -212,7 +213,7 @@ static char buffer[BUFFER_SIZE];
 static const long page_size = sysconf(_SC_PAGE_SIZE);
 
 // read file to buffer, capped to BUFFER_SIZE
-static ssize_t read_file(const std::string &path) {
+static ssize_t read_file(const std::string& path) {
 	int fd = open(path.c_str(), O_RDONLY);
 	if (fd < 0)
 		return -1;
@@ -239,8 +240,8 @@ static std::vector<std::string> parse_cmdline(std::uint32_t pid) {
 		throw std::runtime_error("read " + std::to_string(pid) + " cmdline failed");
 	}
 	std::vector<std::string> args;
-	char *now = buffer;
-	for (char *p = buffer; p < buffer + cmdline_read; ++p) {
+	char* now = buffer;
+	for (char* p = buffer; p < buffer + cmdline_read; ++p) {
 		if (*p == '\0') {
 			args.emplace_back(now, p - now);
 			now = p + 1;
@@ -272,7 +273,7 @@ static CpuMemStat read_pid_stat_cpu_mem(std::uint32_t pid) {
 		throw std::runtime_error("read " + std::to_string(pid) + " stat failed");
 	}
 	CpuMemStat cpu_mem_stat;
-	char *p = buffer;
+	char* p = buffer;
 	// std::cerr << "pid: " << pid  << " buffer: " << buffer << "\n";
 	/* what we want is
 	(14) utime %lu
@@ -303,7 +304,7 @@ static CpuMemStat read_pid_stat_cpu_mem(std::uint32_t pid) {
 			++p;
 			continue;
 		}
-		char *now = p;
+		char* now = p;
 		while (*p != ' ') {
 			++p;
 		}
@@ -328,7 +329,7 @@ static CpuStat read_stat_cpu() {
 		throw std::runtime_error("read /proc/stat failed");
 	}
 	CpuStat cpu_stat;
-	char *p = buffer;
+	char* p = buffer;
 	int field = 1;
 	while (field <= 11) {
 		if (*p == '\0') {
@@ -338,7 +339,7 @@ static CpuStat read_stat_cpu() {
 			++p;
 			continue;
 		}
-		char *now = p;
+		char* now = p;
 		while (*p != ' ') {
 			++p;
 		}
@@ -360,7 +361,7 @@ static DiskStat read_pid_io(std::uint32_t pid) {
 	ssize_t io_read = read_file("/proc/" + std::to_string(pid) + "/io");
 	if (io_read < 0)
 		return disk_stat;
-	char *p = buffer;
+	char* p = buffer;
 	int line = 1;
 	// std::cerr << "pid: " << pid << " buffer: " << buffer << "\n\n";
 	while (line <= 6) {
@@ -368,7 +369,7 @@ static DiskStat read_pid_io(std::uint32_t pid) {
 			while (*p != ' ')
 				++p;
 			++p;
-			char *now = p;
+			char* now = p;
 			while (*p != '\n')
 				++p;
 			std::uint64_t number;
@@ -390,7 +391,7 @@ static DiskStat read_pid_io(std::uint32_t pid) {
 	return disk_stat;
 }
 
-static std::uint64_t parse_socket_inode(const std::string &link) {
+static std::uint64_t parse_socket_inode(const std::string& link) {
 	if (link.substr(0, 8) != "socket:[")
 		return 0;
 	std::uint64_t number;
@@ -402,18 +403,18 @@ static std::vector<std::uint32_t> get_socket_inode_list(std::uint32_t pid) {
 	std::filesystem::path fd_path = "/proc/" + std::to_string(pid) + "/fd";
 	std::vector<uint32_t> sockets;
 	try {
-		for (auto &entry : std::filesystem::directory_iterator(fd_path)) {
+		for (auto& entry : std::filesystem::directory_iterator(fd_path)) {
 			try {
 				std::string link = std::filesystem::read_symlink(entry.path()).string();
 				std::uint32_t inode = parse_socket_inode(link);
 				if (inode) {
 					sockets.push_back(inode);
 				}
-			} catch (const std::filesystem::filesystem_error &e) {
+			} catch (const std::filesystem::filesystem_error& e) {
 				continue;
 			}
 		}
-	} catch (const std::filesystem::filesystem_error &e) {
+	} catch (const std::filesystem::filesystem_error& e) {
 		std::cerr << e.what() << "\n";
 	}
 	return sockets;
@@ -466,7 +467,7 @@ static std::unordered_map<std::uint32_t, SocketInode> parse_net_tcp() {
 static std::vector<std::uint32_t> list_pids() {
 	const std::filesystem::path proc_path("/proc");
 	std::vector<std::uint32_t> pids;
-	for (const auto &entry : std::filesystem::directory_iterator(proc_path)) {
+	for (const auto& entry : std::filesystem::directory_iterator(proc_path)) {
 		std::string name = entry.path().filename().string();
 		if (!name.empty() && isdigit(name[0])) {
 			std::uint32_t pid;
@@ -505,7 +506,7 @@ void ProcessTable::update_table() {
 		std::vector<std::uint32_t> inode_list_of_pid = get_socket_inode_list(pid);
 		if (inode_list_of_pid.empty())
 			continue;
-		for (const auto &inode : inode_list_of_pid) {
+		for (const auto& inode : inode_list_of_pid) {
 			auto it = inode_list_all.find(inode);
 			if (it != inode_list_all.end()) {
 				port_to_pid_map[it->second.local_port] = pid;
@@ -517,7 +518,7 @@ void ProcessTable::update_table() {
 	pid_network_usage = this->pcap_handler.process_packets(local_ip, port_to_pid_map);
 
 	for (std::uint32_t pid : pids) {
-		auto &process_listing = this->list_table[pid];
+		auto& process_listing = this->list_table[pid];
 		try {
 			if (process_listing.get_args().empty()) {
 				process_listing = std::move(read_process_metadata(pid));
@@ -525,8 +526,8 @@ void ProcessTable::update_table() {
 			// if it can't read then it is probably kernel thread
 			if (process_listing.get_args().empty())
 				continue;
-			auto &process_stat = this->stat_table[pid];
-			auto &process_last_stat = this->last_stat_table[pid];
+			auto& process_stat = this->stat_table[pid];
+			auto& process_last_stat = this->last_stat_table[pid];
 
 			CpuMemStat cpu_mem_stat = read_pid_stat_cpu_mem(pid);
 			DiskStat disk_stat = read_pid_io(pid);
@@ -560,7 +561,7 @@ void ProcessTable::update_table() {
 			process_stat.disk_usage = current_disk_delta;
 			process_stat.network_usage = pid_network_usage[pid];
 			seen[pid] = true;
-		} catch (std::exception &e) {
+		} catch (std::exception& e) {
 			std::cerr << e.what() << "\n";
 		}
 	}
@@ -596,7 +597,7 @@ std::string ProcessTable::display_table() const {
 	res += std::format(FORMAT_STRING, "pid", "cpu", "mem", "disk read", "disk write", "net recv",
 	                   "net send", "programm", "cmdline");
 	res += "\n";
-	for (const auto &[pid, listing, stat] : fullstat_table) {
+	for (const auto& [pid, listing, stat] : fullstat_table) {
 		std::string disk_read = stat->disk_usage.disk_read.has_value()
 		                            ? std::to_string(stat->disk_usage.disk_read.value())
 		                            : "N/A";
@@ -623,8 +624,8 @@ std::string ProcessTable::display_table() const {
 }
 
 static auto get_comparator(ProcessTable::ProcessSortType type) {
-	return [type](const ProcessTable::ProcessFullStat &lhs,
-	              const ProcessTable::ProcessFullStat &rhs) {
+	return [type](const ProcessTable::ProcessFullStat& lhs,
+	              const ProcessTable::ProcessFullStat& rhs) {
 		switch (type) {
 		case ProcessTable::ProcessSortType::CPU:
 			if (lhs.stat->cpu_usage_percent != rhs.stat->cpu_usage_percent)
@@ -701,12 +702,14 @@ std::vector<ProcessTable::ProcessFullStat> ProcessTable::get_sorted(ProcessSortT
                                                                     std::uint32_t limit) const {
 
 	std::vector<ProcessTable::ProcessFullStat> ret;
-	for (const auto &[pid, listing] : this->list_table) {
-		const auto &stat = this->stat_table.at(pid);
+	for (const auto& [pid, listing] : this->list_table) {
+		const auto& stat = this->stat_table.at(pid);
 		ret.push_back(std::move(ProcessTable::ProcessFullStat(pid, &listing, &stat)));
 	}
-	if (limit == 0) limit = static_cast<std::uint32_t>(ret.size());
-	else limit = std::min(limit, static_cast<std::uint32_t>(ret.size()));
+	if (limit == 0)
+		limit = static_cast<std::uint32_t>(ret.size());
+	else
+		limit = std::min(limit, static_cast<std::uint32_t>(ret.size()));
 	std::partial_sort(ret.begin(), ret.begin() + limit, ret.end(), get_comparator(type));
 	ret.resize(limit);
 	return ret;
@@ -714,15 +717,19 @@ std::vector<ProcessTable::ProcessFullStat> ProcessTable::get_sorted(ProcessSortT
 
 std::unordered_map<std::string, ProcessStat> ProcessTable::get_map_program_name_resource() const {
 	std::unordered_map<std::string, ProcessStat> process_name_to_total_resource;
-	for (const auto &[pid, listing] : this->list_table) {
-		const auto &stat = this->stat_table.at(pid);
+	for (const auto& [pid, listing] : this->list_table) {
+		const auto& stat = this->stat_table.at(pid);
 		auto& this_name = process_name_to_total_resource[listing.get_process_name()];
 		this_name.cpu_usage_percent += stat.cpu_usage_percent;
 		this_name.mem_usage += stat.mem_usage;
-		this_name.disk_usage.disk_read = this_name.disk_usage.disk_read.value_or(0) + stat.disk_usage.disk_read.value_or(0);
-		this_name.disk_usage.disk_write = this_name.disk_usage.disk_write.value_or(0) + stat.disk_usage.disk_write.value_or(0);
-		this_name.network_usage.network_recv = this_name.network_usage.network_recv.value_or(0) + stat.network_usage.network_recv.value_or(0);
-		this_name.network_usage.network_send = this_name.network_usage.network_send.value_or(0) + stat.network_usage.network_send.value_or(0);
+		this_name.disk_usage.disk_read =
+		    this_name.disk_usage.disk_read.value_or(0) + stat.disk_usage.disk_read.value_or(0);
+		this_name.disk_usage.disk_write =
+		    this_name.disk_usage.disk_write.value_or(0) + stat.disk_usage.disk_write.value_or(0);
+		this_name.network_usage.network_recv = this_name.network_usage.network_recv.value_or(0) +
+		                                       stat.network_usage.network_recv.value_or(0);
+		this_name.network_usage.network_send = this_name.network_usage.network_send.value_or(0) +
+		                                       stat.network_usage.network_send.value_or(0);
 	}
 	return process_name_to_total_resource;
 }

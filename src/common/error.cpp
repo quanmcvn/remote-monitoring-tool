@@ -1,46 +1,32 @@
 #include "error.hpp"
 
-#include <iostream>
 #include <format>
+#include <iostream>
 
 #ifdef _WIN32
 
-#include <winsock2.h>
 #include <winbase.h>
+#include <winsock2.h>
 
-
-int get_last_error() {
-	return WSAGetLastError();
-}
+int get_last_error() { return WSAGetLastError(); }
 
 const char* get_last_error_string(int err) {
 	static char buffer[512];
 
-	FormatMessageA(
-		FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
-		NULL,
-		err,
-		MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-		buffer,
-		sizeof(buffer),
-		NULL
-	);
+	FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL, err,
+	               MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), buffer, sizeof(buffer), NULL);
 
 	return buffer;
 }
 
 #else
 
-#include <errno.h>
 #include <cstring>
+#include <errno.h>
 
-int get_last_error() {
-	return errno;
-}
+int get_last_error() { return errno; }
 
-const char* get_last_error_string(int err) {
-	return strerror(err);
-}
+const char* get_last_error_string(int err) { return strerror(err); }
 
 #endif
 

@@ -1,12 +1,12 @@
 #include "server/server.hpp"
 
-#include <string>
 #include <iostream>
+#include <string>
 
 #include "common/error.hpp"
 #include "common/network.hpp"
-#include "common/util.hpp"
 #include "common/serializable.hpp"
+#include "common/util.hpp"
 
 #define PORT 12345
 
@@ -48,11 +48,11 @@ int server_main(int argc, char* argv[]) {
 
 	int opt = 1;
 #ifdef _WIN32
-	setsockopt(server_socket, SOL_SOCKET, SO_REUSEADDR, (char *)(&opt), sizeof(opt));
+	setsockopt(server_socket, SOL_SOCKET, SO_REUSEADDR, (char*)(&opt), sizeof(opt));
 #else
 	setsockopt(server_socket, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
 #endif
-	if (bind(server_socket, (sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
+	if (bind(server_socket, (sockaddr*)&server_addr, sizeof(server_addr)) < 0) {
 		print_error("bind failed");
 		return 1;
 	}
@@ -62,7 +62,7 @@ int server_main(int argc, char* argv[]) {
 
 	sockaddr_in client_addr{};
 	socklen_t client_size = sizeof(client_addr);
-	socket_t client_socket = accept(server_socket, (sockaddr *)&client_addr, &client_size);
+	socket_t client_socket = accept(server_socket, (sockaddr*)&client_addr, &client_size);
 	// if (!server_running || client_socket < 0) {
 	// 	break;
 	// }

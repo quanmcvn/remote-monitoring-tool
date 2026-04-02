@@ -9,7 +9,7 @@
 #include <iostream>
 
 PcapHandler::PcapHandler() {
-	pcap_if_t *alldevs;
+	pcap_if_t* alldevs;
 	char errbuf[PCAP_ERRBUF_SIZE];
 
 	if (pcap_findalldevs(&alldevs, errbuf) != 0) {
@@ -21,7 +21,7 @@ PcapHandler::PcapHandler() {
 	}
 	int i = 0;
 	std::string device_to_open = "";
-	for (pcap_if_t *d = alldevs; d != nullptr; d = d->next) {
+	for (pcap_if_t* d = alldevs; d != nullptr; d = d->next) {
 		std::string device(d->description);
 		if (device.find("Gigabit") != std::string::npos) {
 			device_to_open = std::string(d->name);
@@ -47,27 +47,28 @@ PcapHandler::~PcapHandler() {
 
 std::unordered_map<std::uint32_t, NetworkStat> PcapHandler::process_packets(
     const std::uint32_t local_ip,
-    const std::unordered_map<std::uint16_t, std::uint32_t> &port_to_pid_map) {
+    const std::unordered_map<std::uint16_t, std::uint32_t>& port_to_pid_map) {
 	std::unordered_map<std::uint32_t, NetworkStat> pid_network_map;
 	struct pcap_pkthdr header;
-	const u_char *packet;
+	const u_char* packet;
 	while (true) {
 		packet = pcap_next(handle, &header);
 		if (packet == NULL) {
 			break;
 		}
-		
-		const u_char *ip_header = packet + 14;
-		// manual accessing each member without name because no #include <netinet/ip.h> #include <netinet/tcp.h> (rip)
+
+		const u_char* ip_header = packet + 14;
+		// manual accessing each member without name because no #include <netinet/ip.h> #include
+		// <netinet/tcp.h> (rip)
 		u_char protocol = ip_header[9];
 		if (protocol != 6) {
 			continue;
 		}
 
-		DWORD src_ip = *(DWORD *)(ip_header + 12);
-		DWORD dst_ip = *(DWORD *)(ip_header + 16);
-		u_short src_port = ntohs(*(u_short *)(ip_header + 20));
-		u_short dst_port = ntohs(*(u_short *)(ip_header + 22));
+		DWORD src_ip = *(DWORD*)(ip_header + 12);
+		DWORD dst_ip = *(DWORD*)(ip_header + 16);
+		u_short src_port = ntohs(*(u_short*)(ip_header + 20));
+		u_short dst_port = ntohs(*(u_short*)(ip_header + 22));
 
 		// char src_ip_str[INET_ADDRSTRLEN];
 		// char dst_ip_str[INET_ADDRSTRLEN];
@@ -84,7 +85,7 @@ std::unordered_map<std::uint32_t, NetworkStat> PcapHandler::process_packets(
 			if (it == port_to_pid_map.end()) {
 				continue;
 			}
-			auto &network_usage = pid_network_map[it->second];
+			auto& network_usage = pid_network_map[it->second];
 			std::uint64_t network_send = network_usage.network_send.value_or(0);
 			network_usage.network_send = network_send + header.len;
 		} else {
@@ -93,7 +94,7 @@ std::unordered_map<std::uint32_t, NetworkStat> PcapHandler::process_packets(
 			if (it == port_to_pid_map.end()) {
 				continue;
 			}
-			auto &network_usage = pid_network_map[it->second];
+			auto& network_usage = pid_network_map[it->second];
 			std::uint64_t network_recv = network_usage.network_recv.value_or(0);
 			network_usage.network_recv = network_recv + header.len;
 		}
@@ -130,22 +131,22 @@ PcapHandler::~PcapHandler() {
 
 std::unordered_map<std::uint32_t, NetworkStat> PcapHandler::process_packets(
     const std::uint32_t local_ip,
-    const std::unordered_map<std::uint16_t, std::uint32_t> &port_to_pid_map) {
+    const std::unordered_map<std::uint16_t, std::uint32_t>& port_to_pid_map) {
 	std::unordered_map<std::uint32_t, NetworkStat> pid_network_map;
 	struct pcap_pkthdr header;
-	const u_char *packet;
+	const u_char* packet;
 	while (true) {
 		packet = pcap_next(handle, &header);
 		if (packet == NULL) {
 			break;
 		}
-		struct ip *ip_hdr = (struct ip *)(packet + 14); // skip Ethernet
+		struct ip* ip_hdr = (struct ip*)(packet + 14); // skip Ethernet
 
 		if (ip_hdr->ip_p != IPPROTO_TCP) {
 			continue;
 		}
 
-		struct tcphdr *tcp_hdr = (struct tcphdr *)(packet + 14 + ip_hdr->ip_hl * 4);
+		struct tcphdr* tcp_hdr = (struct tcphdr*)(packet + 14 + ip_hdr->ip_hl * 4);
 
 		int src_port = ntohs(tcp_hdr->source);
 		int dst_port = ntohs(tcp_hdr->dest);
@@ -164,7 +165,7 @@ std::unordered_map<std::uint32_t, NetworkStat> PcapHandler::process_packets(
 			if (it == port_to_pid_map.end()) {
 				continue;
 			}
-			auto &network_usage = pid_network_map[it->second];
+			auto& network_usage = pid_network_map[it->second];
 			std::uint64_t network_send = network_usage.network_send.value_or(0);
 			network_usage.network_send = network_send + header.len;
 		} else {
@@ -173,7 +174,7 @@ std::unordered_map<std::uint32_t, NetworkStat> PcapHandler::process_packets(
 			if (it == port_to_pid_map.end()) {
 				continue;
 			}
-			auto &network_usage = pid_network_map[it->second];
+			auto& network_usage = pid_network_map[it->second];
 			std::uint64_t network_recv = network_usage.network_recv.value_or(0);
 			network_usage.network_recv = network_recv + header.len;
 		}

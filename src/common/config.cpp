@@ -3,11 +3,11 @@
 #include <filesystem>
 #include <nlohmann/json.hpp>
 
-void Config::serialize(std::ostream &os) const {
+void Config::serialize(std::ostream& os) const {
 	SerializableHelper::write_vector_serializeable<ConfigEntry>(os, this->config_entries);
 }
 
-void Config::deserialize(std::istream &is) {
+void Config::deserialize(std::istream& is) {
 	this->config_entries = SerializableHelper::read_vector_serializeable<ConfigEntry>(is);
 }
 
@@ -21,19 +21,20 @@ int Config::read_config() { return 0; }
 
 #else
 
+#include <fstream>
 #include <pwd.h>
 #include <sys/types.h>
 #include <unistd.h>
-#include <fstream>
 
 int Config::write_config() const {
-	struct passwd *pw = getpwuid(getuid());
+	struct passwd* pw = getpwuid(getuid());
 	std::filesystem::path config_dir = std::filesystem::path(pw->pw_dir) / ".config/rmt";
 	std::filesystem::create_directories(config_dir);
 
 	std::ofstream out((config_dir / "rmt-config.json").string());
 
-	if (!out) return 1;
+	if (!out)
+		return 1;
 
 	auto config_entries_to_write = config_entries;
 
@@ -48,12 +49,13 @@ int Config::write_config() const {
 }
 
 int Config::read_config() {
-	struct passwd *pw = getpwuid(getuid());
+	struct passwd* pw = getpwuid(getuid());
 	std::filesystem::path config_dir = std::filesystem::path(pw->pw_dir) / ".config/rmt";
 
 	std::ifstream in((config_dir / "rmt-config.json").string());
 
-	if (!in) return 1;
+	if (!in)
+		return 1;
 
 	config_entries = nlohmann::json::parse(in);
 	for (auto& config_entry : config_entries) {
@@ -76,6 +78,4 @@ Config Config::default_config() {
 	return ret;
 }
 
-const std::vector<ConfigEntry>& Config::get_config_entries() const {
-	return this->config_entries;
-}
+const std::vector<ConfigEntry>& Config::get_config_entries() const { return this->config_entries; }

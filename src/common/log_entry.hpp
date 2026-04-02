@@ -3,24 +3,33 @@
 
 #include "common/serializable.hpp"
 
-#include <string>
 #include <cstdint>
+#include <string>
 
-enum LogType {
-	CPU,
-	MEM,
-	DISK,
-	NET
-};
+enum LogType { CPU = 1, MEM, DISK, NET };
 
 class LogEntry : public ISerializable {
 private:
+	std::uint64_t id;
 	std::string process_name;
 	std::uint64_t timestamp_ms;
 	LogType log_type;
+	std::uint64_t value;
+
 public:
-	void serialize(std::ostream &os) const override;
-	void deserialize(std::istream &is) override;
+	LogEntry();
+	LogEntry(std::uint64_t n_id, std::string n_process_name, std::uint64_t n_timestamp_ms, LogType n_log_type, std::uint64_t n_value);
+	void serialize(std::ostream& os) const override;
+	void deserialize(std::istream& is) override;
+	// serialize, but not raw byte
+	void serialize_str(std::ostream& os) const;
+	void deserialize_str(std::istream& is);
+
+	std::uint64_t get_id() const;
+	std::string get_process_name() const;
+	std::uint64_t get_timestamp_ms() const;
+	LogType get_log_type() const;
+	std::uint64_t get_value() const;
 };
 
 #endif

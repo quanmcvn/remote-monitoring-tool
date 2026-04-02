@@ -19,14 +19,13 @@ private:
 
 public:
 	ConfigEntry();
-	ConfigEntry(std::string n_process_name, std::uint32_t n_cpu_usage,
-	            std::uint64_t n_mem_usage, std::uint64_t n_disk_usage,
-	            std::uint64_t n_network_usage);
-	void serialize(std::ostream &os) const override;
-	void deserialize(std::istream &is) override;
-	NLOHMANN_DEFINE_TYPE_INTRUSIVE(ConfigEntry, process_name, cpu_usage, mem_usage,
-	                               disk_usage, network_usage)
-	
+	ConfigEntry(std::string n_process_name, std::uint32_t n_cpu_usage, std::uint64_t n_mem_usage,
+	            std::uint64_t n_disk_usage, std::uint64_t n_network_usage);
+	void serialize(std::ostream& os) const override;
+	void deserialize(std::istream& is) override;
+	NLOHMANN_DEFINE_TYPE_INTRUSIVE(ConfigEntry, process_name, cpu_usage, mem_usage, disk_usage,
+	                               network_usage)
+
 	// change config to match real unit after a read
 	// X *= X_UNIT
 	void convert_after_read();
