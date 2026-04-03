@@ -98,7 +98,13 @@ int server_main(int argc, char* argv[]) {
 		last_acked_id = log_entry.get_id();
 		std::cerr << "got last acked id: " << last_acked_id << "\n";
 	} else {
-		std::cerr << "using now last ack id " << last_acked_id << "\n";
+		std::cerr << "did not get last acked id\n";
+	}
+	{
+		// sends an ack now to try resync
+		std::ostringstream oss(std::ios::binary);
+		SerializableHelper::write_string(oss, std::format("ack {}", last_acked_id));
+		SerializableHelper::send_message(client_socket, oss.str());
 	}
 	while (true) {
 		std::string message = SerializableHelper::recv_message(client_socket);

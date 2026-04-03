@@ -19,14 +19,12 @@
 // receive message from server, blocks
 void receive_server_input(ServerConnector& server_connector, EventBus& event_bus) {
 	std::cerr << "receiving server message...\n";
-	ExponentialBackoff backoff(1, 10, 2);
 	while (true) {
 		std::string message = server_connector.recv_input();
 		if (message == "") {
 			std::cerr << "receive_server_input: no message\n";
-			backoff.fail();
+			std::this_thread::sleep_for(std::chrono::seconds(1));
 		} else {
-			backoff.success();
 			std::cerr << "receive_server_input: got message\n";
 			event_bus.publish(NetworkEvent(message));
 		}
@@ -73,7 +71,8 @@ int client_main(int argc, char* argv[]) {
 	ProcessTable table;
 	using clock = std::chrono::steady_clock;
 	auto next_time = clock::now();
-	Config config = Config::default_config();
+	Config config;
+	config.read_config();
 	ClientLogger logger(config, LogQueue("rmt-log.txt", "rmt-ack.txt"), std::ref(event_bus));
 	std::thread receiver_thread(receive_server_input, std::ref(server_connector),
 	                            std::ref(event_bus));

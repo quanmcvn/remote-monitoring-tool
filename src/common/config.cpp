@@ -3,6 +3,11 @@
 #include <filesystem>
 #include <nlohmann/json.hpp>
 
+Config::~Config() {
+	// write config when quitting
+	this->write_config();
+}
+
 void Config::serialize(std::ostream& os) const {
 	SerializableHelper::write_vector_serializeable<ConfigEntry>(os, this->config_entries);
 }

@@ -10,6 +10,7 @@ private:
 	std::vector<ConfigEntry> config_entries;
 
 public:
+	~Config();
 	void serialize(std::ostream& os) const override;
 	void deserialize(std::istream& is) override;
 	// write config to predefined path/registry
