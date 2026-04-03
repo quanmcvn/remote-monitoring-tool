@@ -4,6 +4,7 @@
 #include <iostream>
 #include <thread>
 
+#include "common/exponential_backoff.hpp"
 #include "common/serializable.hpp"
 
 ServerConnector::ServerConnector(const std::string& n_server_ip, int n_server_port)

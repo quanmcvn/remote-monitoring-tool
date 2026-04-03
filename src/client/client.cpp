@@ -4,14 +4,34 @@
 #include <string>
 #include <thread>
 
-#include "client/process_table.hpp"
 #include "client/client_logger.hpp"
+#include "client/process_table.hpp"
 #include "client/server_connector.hpp"
 #include "common/config.hpp"
+#include "common/event_bus.hpp"
+#include "common/exponential_backoff.hpp"
+#include "common/network_event.hpp"
 #include "common/util.hpp"
 
 #define SERVER_IP "127.0.0.1"
 #define SERVER_PORT 12345
+
+// receive message from server, blocks
+void receive_server_input(ServerConnector& server_connector, EventBus& event_bus) {
+	std::cerr << "receiving server message...\n";
+	ExponentialBackoff backoff(1, 10, 2);
+	while (true) {
+		std::string message = server_connector.recv_input();
+		if (message == "") {
+			std::cerr << "receive_server_input: no message\n";
+			backoff.fail();
+		} else {
+			backoff.success();
+			std::cerr << "receive_server_input: got message\n";
+			event_bus.publish(NetworkEvent(message));
+		}
+	}
+}
 
 int client_main(int argc, char* argv[]) {
 	network_init();
@@ -37,7 +57,8 @@ int client_main(int argc, char* argv[]) {
 	}
 
 	std::cout << "chosing " << chosen_ip << ":" << chosen_port << "\n";
-	// ServerConnector server_connector(chosen_ip, chosen_port);
+	ServerConnector server_connector(chosen_ip, chosen_port);
+	EventBus event_bus;
 
 	// while (true) {
 	// 	std::string message = "hello from client";
@@ -53,12 +74,24 @@ int client_main(int argc, char* argv[]) {
 	using clock = std::chrono::steady_clock;
 	auto next_time = clock::now();
 	Config config = Config::default_config();
-	ClientLogger logger(config, LogQueue("rmt-log.txt", "rmt-ack.txt"));
+	ClientLogger logger(config, LogQueue("rmt-log.txt", "rmt-ack.txt"), std::ref(event_bus));
+	std::thread receiver_thread(receive_server_input, std::ref(server_connector),
+	                            std::ref(event_bus));
+	receiver_thread.detach();
 	while (true) {
 		next_time += std::chrono::seconds(1);
 
 		table.update_table();
 		logger.generate_log(table);
+		std::vector<LogEntry> log_entries = logger.get_batch_log(100);
+		if (!log_entries.empty()) {
+			std::ostringstream oss(std::ios::binary);
+			SerializableHelper::write_vector_serializeable(oss, log_entries);
+
+			if (!server_connector.send_output(oss.str())) {
+				std::cerr << "client: failed to send output\n";
+			}
+		}
 		std::string dis = table.display_table();
 		std::cout << dis;
 

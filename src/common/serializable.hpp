@@ -3,7 +3,8 @@
 
 #include "network.hpp"
 #include <cstdint>
-#include <iostream>
+#include <istream>
+#include <ostream>
 #include <vector>
 
 class ISerializable {

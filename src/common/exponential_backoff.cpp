@@ -1,4 +1,4 @@
-#include "client/exponential_backoff.hpp"
+#include "common/exponential_backoff.hpp"
 
 #include <chrono>
 #include <iostream>
@@ -9,7 +9,7 @@ ExponentialBackoff::ExponentialBackoff() : start(1), stop(30), multipler(2) {
 }
 
 ExponentialBackoff::ExponentialBackoff(int n_start, int n_stop, int n_multiplier)
-    : start(n_start), stop(n_stop), multipler(n_multiplier) {
+    : start(n_start), stop(n_stop), multipler(std::max(n_multiplier, 2)) {
 	current_delay = start;
 }
 

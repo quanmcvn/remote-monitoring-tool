@@ -13,8 +13,11 @@ private:
 	std::uint64_t ack_id;
 	// use deque for efficient peeking
 	std::deque<LogEntry> log_entries;
+	std::uint64_t new_id;
+
 private:
 	void clean_old_logs() const;
+
 public:
 	LogQueue(const std::string& log_file, const std::string& ack_file);
 	~LogQueue();
@@ -24,7 +27,7 @@ public:
 	// ack every log entry with id <= id, mark them for clearing out of disk
 	// effectively tcp's ack
 	void ack_log(std::uint64_t id);
-	std::uint64_t get_new_id() const;
+	std::uint64_t get_new_id();
 };
 
 #endif

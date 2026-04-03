@@ -1,6 +1,7 @@
 #include "util.hpp"
 #include <chrono>
 #include <cstdint>
+#include <fstream>
 #include <iostream>
 
 int str_to_int(const std::string& str) {
@@ -48,4 +49,29 @@ std::uint64_t get_timestamp_ms() {
 	return static_cast<std::uint64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(
 	                                      std::chrono::system_clock::now().time_since_epoch())
 	                                      .count());
+}
+
+std::string get_last_line_of_file(const std::string& filename) {
+	std::ifstream filename_in(filename, std::ios::ate);
+	if (!filename_in)
+		return "";
+	std::streampos pos = filename_in.tellg();
+	std::string last_line;
+	pos -= 1;
+	for (pos -= 1; pos >= 0; pos -= 1) {
+		filename_in.seekg(pos);
+		char ch;
+		filename_in.get(ch);
+
+		if (ch == '\n') {
+			std::getline(filename_in, last_line);
+			break;
+		}
+	}
+
+	if (last_line.empty()) {
+		filename_in.seekg(0);
+		std::getline(filename_in, last_line);
+	}
+	return last_line;
 }

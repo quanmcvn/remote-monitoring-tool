@@ -6,7 +6,6 @@
 #include <optional>
 #include <string>
 
-#include "client/exponential_backoff.hpp"
 #include "common/network.hpp"
 
 // holds connection to server, and only that
@@ -23,7 +22,7 @@ private:
 	void reconnect_indefinitely();
 
 public:
-	ServerConnector(const std::string& n_server_ip, int n_server_port);
+	ServerConnector(const std::string& server_ip, int server_port);
 	~ServerConnector();
 	std::optional<socket_t> get_client_socket() const;
 	std::string recv_input();

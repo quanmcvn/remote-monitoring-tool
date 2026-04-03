@@ -18,7 +18,8 @@ private:
 
 public:
 	LogEntry();
-	LogEntry(std::uint64_t n_id, std::string n_process_name, std::uint64_t n_timestamp_ms, LogType n_log_type, std::uint64_t n_value);
+	LogEntry(std::uint64_t id, std::string process_name, std::uint64_t timestamp_ms,
+	         LogType log_type, std::uint64_t value);
 	void serialize(std::ostream& os) const override;
 	void deserialize(std::istream& is) override;
 	// serialize, but not raw byte

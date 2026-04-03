@@ -13,8 +13,7 @@ private:
 
 public:
 	ProcessListing();
-	ProcessListing(std::uint32_t n_pid, std::string n_process_name,
-	               std::vector<std::string> n_args);
+	ProcessListing(std::uint32_t pid, std::string process_name, std::vector<std::string> args);
 
 	uint32_t get_pid() const;
 	std::string get_process_name() const;

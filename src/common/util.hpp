@@ -13,4 +13,7 @@ void print_progress(uint64_t total_received, uint64_t file_size,
 
 std::uint64_t get_timestamp_ms();
 
+// used in server to deduce last acked
+std::string get_last_line_of_file(const std::string& filename);
+
 #endif

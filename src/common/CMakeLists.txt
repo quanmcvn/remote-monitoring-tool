@@ -4,8 +4,12 @@ target_sources(common
 	PRIVATE
 		config_entry.cpp
 		config.cpp
+		event_bus.cpp
+		exponential_backoff.cpp
 		error.cpp
+		input_event.cpp
 		log_entry.cpp
+		network_event.cpp
 		network.cpp
 		serializable.cpp
 		util.cpp

@@ -3,7 +3,6 @@ target_sources(client_lib
 	PRIVATE
 		client_logger.cpp
 		client.cpp
-		exponential_backoff.cpp
 		log_queue.cpp
 		network_processing.cpp
 		process_listing.cpp

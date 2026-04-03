@@ -1,5 +1,5 @@
-#ifndef CLIENT_EXPONENTIAL_BACKOFF
-#define CLIENT_EXPONENTIAL_BACKOFF
+#ifndef COMMON_EXPONENTIAL_BACKOFF
+#define COMMON_EXPONENTIAL_BACKOFF
 
 class ExponentialBackoff {
 private:
@@ -10,7 +10,7 @@ private:
 
 public:
 	ExponentialBackoff();
-	ExponentialBackoff(int n_start, int n_stop, int n_multiplier);
+	ExponentialBackoff(int start, int stop, int multiplier);
 	// clear current delay
 	void success();
 	// wait(current delay) and update it
