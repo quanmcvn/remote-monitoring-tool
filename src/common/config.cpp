@@ -3,6 +3,8 @@
 #include <filesystem>
 #include <nlohmann/json.hpp>
 
+#include "common/util.hpp"
+
 Config::~Config() {
 	// write config when quitting
 	this->write_config();
@@ -18,12 +20,59 @@ void Config::deserialize(std::istream& is) {
 
 #ifdef _WIN32
 
-// NYI
-int Config::write_config() const { return 0; }
+#include <string>
+#include <vector>
+#include <iostream>
 
-// NYI
-int Config::read_config() { return 0; }
+#define REGISTRY_PREFIX L"Software\\RemoteMonitoringTool\\config"
 
+int Config::write_config() const {
+	RegDeleteTreeW(HKEY_CURRENT_USER, REGISTRY_PREFIX);
+	{
+		reg::Key key(HKEY_CURRENT_USER, REGISTRY_PREFIX);
+		key.set_dword(L"count", this->config_entries.size());
+	}
+	auto config_entries_to_write = config_entries;
+	for (auto& config_entry : config_entries_to_write) {
+		config_entry.convert_before_write();
+	}
+
+	for (int i = 0; i < config_entries_to_write.size(); ++i) {
+		reg::Key key(HKEY_CURRENT_USER, REGISTRY_PREFIX + std::wstring(L"\\") + std::to_wstring(i));
+		config_entries_to_write[i].serialize_registry(key);
+	}
+	// pretty much always work
+	return 0;
+}
+
+int Config::read_config() {
+	int return_code = 0;
+	std::error_code ec;
+	int count = 0;
+	{
+		reg::Key key(HKEY_CURRENT_USER, REGISTRY_PREFIX);
+		auto n_count = key.get_dword(L"count", ec);
+		if (ec || !n_count.has_value()) {
+			std::cerr << "config: failed reading 'count' from " << to_string(REGISTRY_PREFIX)
+			          << "\n";
+			return 1;
+		}
+		count = static_cast<int>(n_count.value());
+	}
+	this->config_entries.resize(count);
+	for (int i = 0; i < count; ++i) {
+		reg::Key key(HKEY_CURRENT_USER, REGISTRY_PREFIX + std::wstring(L"\\") + std::to_wstring(i));
+		if (this->config_entries[i].deserialize_registry(key) != 0) {
+			return_code = 1;
+		}
+	}
+	for (auto& config_entry : this->config_entries) {
+		config_entry.convert_after_read();
+	}
+	return return_code;
+}
+
+#undef REGISTRY_PREFIX
 #else
 
 #include <fstream>
@@ -74,7 +123,7 @@ int Config::read_config() {
 
 Config Config::default_config() {
 	Config ret;
-	ret.config_entries.emplace_back("test_prog", 1, 11, 1, 1);
+	ret.config_entries.emplace_back("test_prog.exe", 1, 11, 1, 1);
 	ret.config_entries.emplace_back("chrome.exe", 10, 200, 1, 500);
 	ret.config_entries.emplace_back("devenv.exe", 50, 100, 10, 100);
 	for (auto& config_entry : ret.config_entries) {

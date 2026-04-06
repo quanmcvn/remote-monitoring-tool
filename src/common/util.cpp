@@ -52,26 +52,48 @@ std::uint64_t get_timestamp_ms() {
 }
 
 std::string get_last_line_of_file(const std::string& filename) {
-	std::ifstream filename_in(filename, std::ios::ate);
-	if (!filename_in)
+	std::ifstream file(filename, std::ios::binary);
+	if (!file)
 		return "";
-	std::streampos pos = filename_in.tellg();
-	std::string last_line;
-	pos -= 1;
-	for (pos -= 1; pos >= 0; pos -= 1) {
-		filename_in.seekg(pos);
-		char ch;
-		filename_in.get(ch);
 
-		if (ch == '\n') {
-			std::getline(filename_in, last_line);
+	file.seekg(0, std::ios::end);
+	std::streamoff pos = file.tellg();
+
+	if (pos == 0)
+		return "";
+
+	char ch;
+
+	// skip trailing newlines, me when i always cout << "\n"
+	while (pos > 0) {
+		file.seekg(--pos);
+		file.get(ch);
+		if (ch != '\n' && ch != '\r')
 			break;
-		}
 	}
 
-	if (last_line.empty()) {
-		filename_in.seekg(0);
-		std::getline(filename_in, last_line);
+	std::string reversed;
+
+	while (pos >= 0) {
+		file.seekg(pos);
+		file.get(ch);
+
+		if (ch == '\n')
+			break;
+
+		if (ch != '\r')
+			reversed.push_back(ch);
+
+		if (pos == 0)
+			break;
+		--pos;
 	}
-	return last_line;
+
+	std::reverse(reversed.begin(), reversed.end());
+	return reversed;
 }
+
+std::string to_string(const std::wstring& wstr) { return std::string(wstr.begin(), wstr.end()); }
+
+// convert to wstring under assumption that it's only ascii
+std::wstring to_wstring(const std::string& str) { return std::wstring(str.begin(), str.end()); }

@@ -7,6 +7,10 @@
 #include <nlohmann/json.hpp>
 #include <string>
 
+#ifdef _WIN32
+#include "common/registry.hpp"
+#endif
+
 using json = nlohmann::json;
 
 class ConfigEntry : public ISerializable {
@@ -38,5 +42,10 @@ public:
 	std::uint64_t get_mem_usage() const;
 	std::uint64_t get_disk_usage() const;
 	std::uint64_t get_network_usage() const;
+
+#ifdef _WIN32
+	void serialize_registry(reg::Key& reg_key) const;
+	int deserialize_registry(reg::Key& reg_key);
+#endif
 };
 #endif

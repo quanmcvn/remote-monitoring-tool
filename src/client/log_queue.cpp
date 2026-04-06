@@ -33,7 +33,8 @@ LogQueue::LogQueue(const std::string& n_log_file, const std::string& n_ack_file)
 	} else {
 		while (!log_file_in.eof()) {
 			LogEntry log_entry;
-			log_entry.deserialize_str(log_file_in);
+			int ret = log_entry.deserialize_str(log_file_in);
+			if (ret != 0) continue;
 			if (log_entry.get_id() > this->ack_id) {
 				this->log_entries.push_back(std::move(log_entry));
 			}
@@ -102,6 +103,7 @@ void LogQueue::add_log(LogEntry log_entry) {
 }
 
 std::vector<LogEntry> LogQueue::get_batch_log(std::uint32_t batch_size) const {
+	if (log_entries.empty()) return std::vector<LogEntry>();
 	batch_size = std::min(batch_size, static_cast<std::uint32_t>(log_entries.size()));
 	std::vector<LogEntry> peek;
 	for (std::uint32_t i = 0; i < batch_size; ++i) {

@@ -5,8 +5,9 @@
 
 #ifdef _WIN32
 
-#include <winbase.h>
 #include <winsock2.h>
+#include <windows.h>
+#include <winbase.h>
 
 int get_last_error() { return WSAGetLastError(); }
 

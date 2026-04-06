@@ -15,6 +15,14 @@ target_sources(common
 		util.cpp
 )
 
+
+if (WIN32)
+target_sources(common
+	PRIVATE
+		registry.cpp
+)
+endif()
+
 target_include_directories(common
 	PUBLIC
 		${CMAKE_SOURCE_DIR}/src

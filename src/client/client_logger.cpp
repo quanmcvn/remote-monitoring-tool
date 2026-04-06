@@ -19,11 +19,6 @@ ClientLogger::ClientLogger(Config n_config, LogQueue n_log_queue, EventBus& even
 				std::uint64_t id;
 				std::string id_str = message.substr(std::string("ack ").size());
 				std::from_chars(id_str.c_str(), id_str.c_str() + id_str.size(), id);
-				if (id <= 0) {
-					std::cerr << "client_logger: can't parse id (got '" << id << "') from "
-					          << message << "\n";
-					return;
-				}
 				std::cerr << "client_logger: got id " << id << "\n";
 				this->log_queue.ack_log(id);
 			}

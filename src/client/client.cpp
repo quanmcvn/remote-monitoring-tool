@@ -72,7 +72,17 @@ int client_main(int argc, char* argv[]) {
 	using clock = std::chrono::steady_clock;
 	auto next_time = clock::now();
 	Config config;
-	config.read_config();
+	int ret = config.read_config();
+	if (ret != 0) {
+		std::cerr << "client: error while reading config? fall back to default\n";
+		config = Config::default_config();
+	}
+	std::cerr << "client: got config:\n";
+	for (const auto& config_entry : config.get_config_entries()) {
+		std::cerr << config_entry.get_process_name() << " " << config_entry.get_cpu_usage() << " "
+		          << config_entry.get_mem_usage() << " " << config_entry.get_disk_usage() << " "
+		          << config_entry.get_network_usage() << "\n";
+	}
 	ClientLogger logger(config, LogQueue("rmt-log.txt", "rmt-ack.txt"), std::ref(event_bus));
 	std::thread receiver_thread(receive_server_input, std::ref(server_connector),
 	                            std::ref(event_bus));
@@ -84,12 +94,18 @@ int client_main(int argc, char* argv[]) {
 		logger.generate_log(table);
 		std::vector<LogEntry> log_entries = logger.get_batch_log(100);
 		if (!log_entries.empty()) {
+			std::cerr << "client: log size " << log_entries.size() << "\n";
+			for (const auto& entry : log_entries) {
+				std::cerr << entry.get_id() << " " << entry.get_log_type() << "\n";
+			}
 			std::ostringstream oss(std::ios::binary);
 			SerializableHelper::write_vector_serializeable(oss, log_entries);
 
 			if (!server_connector.send_output(oss.str())) {
 				std::cerr << "client: failed to send output\n";
 			}
+		} else {
+			std::cerr << "client: log empty! not sending rn...\n";
 		}
 		std::string dis = table.display_table();
 		std::cout << dis;

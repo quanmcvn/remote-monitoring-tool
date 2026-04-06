@@ -13,7 +13,7 @@ private:
 	std::uint64_t ack_id;
 	// use deque for efficient peeking
 	std::deque<LogEntry> log_entries;
-	std::uint64_t new_id;
+	std::uint64_t new_id = 0;
 
 private:
 	void clean_old_logs() const;

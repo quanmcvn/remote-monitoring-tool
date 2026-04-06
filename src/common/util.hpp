@@ -16,4 +16,10 @@ std::uint64_t get_timestamp_ms();
 // used in server to deduce last acked
 std::string get_last_line_of_file(const std::string& filename);
 
+// convert to string under assumption that it's only ascii
+std::string to_string(const std::wstring& wstr);
+
+// convert to wstring under assumption that it's only ascii
+std::wstring to_wstring(const std::string& str);
+
 #endif

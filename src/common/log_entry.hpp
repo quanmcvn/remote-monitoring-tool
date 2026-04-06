@@ -24,7 +24,7 @@ public:
 	void deserialize(std::istream& is) override;
 	// serialize, but not raw byte
 	void serialize_str(std::ostream& os) const;
-	void deserialize_str(std::istream& is);
+	int deserialize_str(std::istream& is);
 
 	std::uint64_t get_id() const;
 	std::string get_process_name() const;

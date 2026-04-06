@@ -30,10 +30,11 @@ void LogEntry::serialize_str(std::ostream& os) const {
 	os << this->id << "|" << this->process_name << "|" << this->timestamp_ms << "|"
 	   << static_cast<std::uint32_t>(this->log_type) << "|" << this->value << "\n";
 }
-void LogEntry::deserialize_str(std::istream& is) {
+int LogEntry::deserialize_str(std::istream& is) {
 	std::string line;
 	if (!std::getline(is, line))
-		return;
+		return 1;
+	if (line.empty()) return 1;
 	std::istringstream ss(line);
 	std::string temp;
 	std::getline(ss, temp, '|');
@@ -47,6 +48,7 @@ void LogEntry::deserialize_str(std::istream& is) {
 	this->log_type = static_cast<LogType>(temp_number);
 	std::getline(ss, temp, '|');
 	std::from_chars(temp.c_str(), temp.c_str() + temp.size(), this->value);
+	return 0;
 }
 
 std::uint64_t LogEntry::get_id() const { return id; }
