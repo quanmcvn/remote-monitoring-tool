@@ -1,9 +1,12 @@
 #include "server/server.hpp"
 
+#include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <nlohmann/json.hpp>
 #include <string>
 
+#include "common/config_entry.hpp"
 #include "common/error.hpp"
 #include "common/event_bus.hpp"
 #include "common/input_event.hpp"
@@ -11,18 +14,46 @@
 #include "common/network.hpp"
 #include "common/serializable.hpp"
 #include "common/util.hpp"
+#include "common/input_handler.hpp"
 
 #define PORT 12345
 
-// read input and push to event bus, blocks
-void server_input_thread(EventBus& event_bus) {
-	while (true) {
-		std::string line;
-		std::getline(std::cin, line);
-		if (line == "")
-			continue;
-		event_bus.publish(InputEvent(line));
-	}
+void register_server_input(EventBus& event_bus) {
+	event_bus.subscribe([](const Event& event) {
+		std::cerr << "server_input: got event\n";
+		if (const InputEvent* input_event_ptr = dynamic_cast<const InputEvent*>(&event)) {
+			const InputEvent& input_event = *input_event_ptr;
+			std::string payload = input_event.get_payload();
+			std::cerr << "server_input: got input_event: '" << payload << "'\n";
+			if (payload.starts_with("config ")) {
+				std::string config_file_name = payload.substr(std::string("config ").length());
+				std::ifstream config_file_in(std::filesystem::path(config_file_name).string());
+				if (!config_file_in) {
+					std::cerr << "server_input: config: can't open file or file doesn't exist: '"
+					          << config_file_name << "'\n";
+					return;
+				}
+				try {
+					std::vector<ConfigEntry> config_entries = nlohmann::json::parse(config_file_in);
+					std::cerr << "server_input: config: got config:\n";
+					for (const auto& config_entry : config_entries) {
+						std::cerr << config_entry.get_process_name() << " "
+						          << config_entry.get_cpu_usage() << " "
+						          << config_entry.get_mem_usage() << " "
+						          << config_entry.get_disk_usage() << " "
+						          << config_entry.get_network_usage() << "\n";
+					}
+				} catch (std::exception& e) {
+					std::cerr << "server_input: config: error while parsing config file '"
+					          << config_file_name << "': " << e.what() << "\n";
+					return;
+				}
+
+				return;
+			}
+			std::cerr << "server_input: invalid command: '" << payload << "'\n";
+		}
+	});
 }
 
 int server_main(int argc, char* argv[]) {
@@ -74,6 +105,10 @@ int server_main(int argc, char* argv[]) {
 
 	listen(server_socket, 1);
 	std::cout << "server listening on port " << chosen_port << "...\n";
+
+	EventBus event_bus;
+	InputHandler input_handler(event_bus);
+	register_server_input(event_bus);
 
 	sockaddr_in client_addr{};
 	socklen_t client_size = sizeof(client_addr);

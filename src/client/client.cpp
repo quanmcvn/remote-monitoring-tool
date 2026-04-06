@@ -26,7 +26,7 @@ void receive_server_input(ServerConnector& server_connector, EventBus& event_bus
 			std::this_thread::sleep_for(std::chrono::seconds(1));
 		} else {
 			std::cerr << "receive_server_input: got message\n";
-			event_bus.publish(NetworkEvent(message));
+			event_bus.publish(NetworkRecvEvent(message));
 		}
 	}
 }

@@ -5,12 +5,21 @@
 
 #include <string>
 
-class NetworkEvent : public Event {
+class NetworkSendEvent : public Event {
 private:
 	std::string payload;
 
 public:
-	NetworkEvent(const std::string& payload);
+	NetworkSendEvent(const std::string& payload);
+	std::string get_payload() const;
+};
+
+class NetworkRecvEvent : public Event {
+private:
+	std::string payload;
+
+public:
+	NetworkRecvEvent(const std::string& payload);
 	std::string get_payload() const;
 };
 

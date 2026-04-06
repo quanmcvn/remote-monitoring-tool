@@ -9,8 +9,8 @@ ClientLogger::ClientLogger(Config n_config, LogQueue n_log_queue, EventBus& even
     : config(std::move(n_config)), log_queue(std::move(n_log_queue)) {
 	event_bus.subscribe([this](const Event& event) {
 		std::cerr << "client_logger: got event\n";
-		if (const NetworkEvent* network_event_ptr = dynamic_cast<const NetworkEvent*>(&event)) {
-			const NetworkEvent& network_event = *network_event_ptr;
+		if (const NetworkRecvEvent* network_event_ptr = dynamic_cast<const NetworkRecvEvent*>(&event)) {
+			const NetworkRecvEvent& network_event = *network_event_ptr;
 			std::string payload = network_event.get_payload();
 			std::istringstream iss(payload, std::ios::binary);
 			std::string message = SerializableHelper::read_string(iss);

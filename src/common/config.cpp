@@ -123,6 +123,7 @@ int Config::read_config() {
 
 Config Config::default_config() {
 	Config ret;
+	ret.config_entries.emplace_back("test_prog", 1, 11, 1, 1);
 	ret.config_entries.emplace_back("test_prog.exe", 1, 11, 1, 1);
 	ret.config_entries.emplace_back("chrome.exe", 10, 200, 1, 500);
 	ret.config_entries.emplace_back("devenv.exe", 50, 100, 10, 100);

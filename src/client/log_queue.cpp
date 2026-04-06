@@ -113,8 +113,12 @@ std::vector<LogEntry> LogQueue::get_batch_log(std::uint32_t batch_size) const {
 }
 
 void LogQueue::ack_log(std::uint64_t id) {
-	if (id <= this->ack_id)
-		return;
+	if (id == this->ack_id) return;
+	if (id < this->ack_id) {
+		std::cerr << "warn: log_queue: receiving ack id " << id << " which is smaller than current ack id " << this->ack_id << "\n";
+		// server has authority here, client listens to server
+		// fall through
+	}
 	std::cerr << "log_queue: ack " << id << "\n";
 	this->ack_id = id;
 	while (!log_entries.empty() && log_entries.front().get_id() <= this->ack_id) {

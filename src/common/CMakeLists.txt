@@ -8,6 +8,7 @@ target_sources(common
 		exponential_backoff.cpp
 		error.cpp
 		input_event.cpp
+		input_handler.cpp
 		log_entry.cpp
 		network_event.cpp
 		network.cpp
