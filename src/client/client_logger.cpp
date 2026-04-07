@@ -8,9 +8,9 @@
 ClientLogger::ClientLogger(Config n_config, LogQueue n_log_queue, EventBus& event_bus)
     : config(std::move(n_config)), log_queue(std::move(n_log_queue)) {
 	event_bus.subscribe([this](const Event& event) {
-		std::cerr << "client_logger: got event\n";
 		if (const NetworkRecvEvent* network_event_ptr = dynamic_cast<const NetworkRecvEvent*>(&event)) {
 			const NetworkRecvEvent& network_event = *network_event_ptr;
+			std::cerr << "client_logger: got recv event\n";
 			std::string payload = network_event.get_payload();
 			std::istringstream iss(payload, std::ios::binary);
 			std::string message = SerializableHelper::read_string(iss);
@@ -62,4 +62,10 @@ void ClientLogger::generate_log(const ProcessTable& process_table) {
 
 std::vector<LogEntry> ClientLogger::get_batch_log(std::uint32_t batch_size) const {
 	return this->log_queue.get_batch_log(batch_size);
+}
+
+void ClientLogger::set_config(Config n_config) {
+	this->config = n_config;
+	// write config immediately after setting because why not
+	this->config.write_config();
 }

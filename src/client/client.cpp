@@ -18,17 +18,66 @@
 
 // receive message from server, blocks
 void receive_server_input(ServerConnector& server_connector, EventBus& event_bus) {
-	std::cerr << "receiving server message...\n";
 	while (true) {
+		std::cerr << "receiving server message...\n";
 		std::string message = server_connector.recv_input();
 		if (message == "") {
 			std::cerr << "receive_server_input: no message\n";
 			std::this_thread::sleep_for(std::chrono::seconds(1));
 		} else {
 			std::cerr << "receive_server_input: got message\n";
-			event_bus.publish(NetworkRecvEvent(message));
+			event_bus.publish(NetworkRecvEvent(server_connector.get_server_ip(), server_connector.get_server_port(), message));
 		}
 	}
+}
+
+void register_send_outout_to_server(ServerConnector& server_connector, EventBus& event_bus) {
+	event_bus.subscribe([&server_connector] (const Event& event) {
+		std::cerr << "send_output_to_server: got event\n";
+		if (const NetworkSendEvent* network_event_ptr = dynamic_cast<const NetworkSendEvent*>(&event)) {
+			const NetworkSendEvent& network_event = *network_event_ptr;
+
+			// spawn a thread here because send() blocks
+			std::thread t([&server_connector, &network_event] () {
+				server_connector.send_output(network_event.get_payload());
+			});
+			t.detach();
+			// done, now return
+		}
+	});
+}
+
+void register_recv_config(ClientLogger& client_logger, ServerConnector& server_connector, EventBus& event_bus) {
+	EventBus& event_bus_ref = event_bus;
+	event_bus.subscribe([&server_connector, &client_logger, &event_bus_ref] (const Event& event) {
+		std::cerr << "recv_config: got event\n";
+		if (const NetworkRecvEvent* network_event_ptr = dynamic_cast<const NetworkRecvEvent*>(&event)) {
+			const NetworkRecvEvent& network_event = *network_event_ptr;
+			std::string payload = network_event.get_payload();
+			std::istringstream iss(payload, std::ios::binary);
+			std::string message = SerializableHelper::read_string(iss);
+			std::cerr << "recv_config: network event: " << message << "\n";
+			if (message.starts_with("config ")) {
+				std::string content = message.substr(std::string("config ").length());
+				try {
+					std::vector<ConfigEntry> config_entries = nlohmann::json::parse(content);
+					std::cerr << "recv_config: got config from server:\n";
+					for (const auto& config_entry : config_entries) {
+						std::cerr << config_entry.get_process_name() << " " << config_entry.get_cpu_usage() << " "
+								<< config_entry.get_mem_usage() << " " << config_entry.get_disk_usage() << " "
+								<< config_entry.get_network_usage() << "\n";
+					}
+					client_logger.set_config(Config(config_entries));
+
+					std::ostringstream oss;
+					SerializableHelper::write_string(oss, "config ok");
+					event_bus_ref.publish(NetworkSendEvent(server_connector.get_server_ip(), server_connector.get_server_port(), oss.str()));
+				} catch (std::exception& e) {
+					std::cerr << "recv_config: failed to parse config from server: '" << content << "'\n";
+				}
+			}
+		}
+	});
 }
 
 int client_main(int argc, char* argv[]) {
@@ -87,6 +136,8 @@ int client_main(int argc, char* argv[]) {
 	std::thread receiver_thread(receive_server_input, std::ref(server_connector),
 	                            std::ref(event_bus));
 	receiver_thread.detach();
+	register_send_outout_to_server(server_connector, event_bus);
+	register_recv_config(std::ref(logger), std::ref(server_connector), std::ref(event_bus));
 	while (true) {
 		next_time += std::chrono::seconds(1);
 
@@ -99,16 +150,14 @@ int client_main(int argc, char* argv[]) {
 				std::cerr << entry.get_id() << " " << entry.get_log_type() << "\n";
 			}
 			std::ostringstream oss(std::ios::binary);
+			SerializableHelper::write_string(oss, "log");
 			SerializableHelper::write_vector_serializeable(oss, log_entries);
 
-			if (!server_connector.send_output(oss.str())) {
-				std::cerr << "client: failed to send output\n";
-			}
+			event_bus.publish(NetworkSendEvent(server_connector.get_server_ip(), server_connector.get_server_port(), oss.str()));
 		} else {
 			std::cerr << "client: log empty! not sending rn...\n";
 		}
-		std::string dis = table.display_table();
-		std::cout << dis;
+		// std::cout << table.display_table();
 
 		std::this_thread::sleep_until(next_time);
 	}

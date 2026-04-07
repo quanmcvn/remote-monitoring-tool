@@ -15,6 +15,7 @@ private:
 
 public:
 	ClientLogger(Config config, LogQueue log_queue, EventBus& event_bus);
+	void set_config(Config config);
 	void generate_log(const ProcessTable& process_table);
 	// delegate to internal log queue
 	std::vector<LogEntry> get_batch_log(std::uint32_t batch_size) const;

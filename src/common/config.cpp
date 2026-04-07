@@ -5,6 +5,9 @@
 
 #include "common/util.hpp"
 
+Config::Config() {}
+Config::Config(std::vector<ConfigEntry> n_config_entries) : config_entries(n_config_entries) {}
+
 Config::~Config() {
 	// write config when quitting
 	this->write_config();
@@ -20,9 +23,9 @@ void Config::deserialize(std::istream& is) {
 
 #ifdef _WIN32
 
+#include <iostream>
 #include <string>
 #include <vector>
-#include <iostream>
 
 #define REGISTRY_PREFIX L"Software\\RemoteMonitoringTool\\config"
 

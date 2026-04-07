@@ -7,7 +7,7 @@
 #include "common/exponential_backoff.hpp"
 #include "common/serializable.hpp"
 
-ServerConnector::ServerConnector(const std::string& n_server_ip, int n_server_port)
+ServerConnector::ServerConnector(const std::string& n_server_ip, std::uint16_t n_server_port)
     : server_ip(n_server_ip), server_port(n_server_port) {
 	std::thread reconnect_thread(&ServerConnector::reconnect_indefinitely, this);
 	reconnect_thread.detach();
@@ -61,6 +61,13 @@ std::optional<socket_t> ServerConnector::get_client_socket() const {
 	} else {
 		return std::nullopt;
 	}
+}
+
+std::string ServerConnector::get_server_ip() const {
+	return server_ip;
+}
+std::uint16_t ServerConnector::get_server_port() const {
+	return server_port;
 }
 
 std::string ServerConnector::recv_input() {

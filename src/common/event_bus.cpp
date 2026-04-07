@@ -6,10 +6,15 @@ void EventBus::subscribe(Callback cb) {
 }
 
 void EventBus::publish(const Event& event) {
-	std::lock_guard<std::mutex> lock(subscribers_mutex);
+	// copy to a new vector to allow calling publish() in publish()
+	std::vector<Callback> copy;
+	{
+		std::lock_guard<std::mutex> lock(subscribers_mutex);
+		copy = subscribers;
+	}
 	// runs the callbacks in place
 	// should be fine for the mean time
-	for (auto& cb : subscribers) {
+	for (auto& cb : copy) {
 		cb(event);
 	}
 }

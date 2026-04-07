@@ -1,6 +1,8 @@
 add_library(server_lib)
 target_sources(server_lib
 	PRIVATE
+		client_handler.cpp
+		client_manager.cpp
 		server.cpp
 )
 target_include_directories(server_lib

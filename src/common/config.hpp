@@ -10,6 +10,8 @@ private:
 	std::vector<ConfigEntry> config_entries;
 
 public:
+	Config();
+	Config(std::vector<ConfigEntry> config_entries);
 	~Config();
 	void serialize(std::ostream& os) const override;
 	void deserialize(std::istream& is) override;

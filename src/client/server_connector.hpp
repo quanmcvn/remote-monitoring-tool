@@ -13,7 +13,7 @@
 class ServerConnector {
 private:
 	std::string server_ip;
-	int server_port;
+	std::uint16_t server_port;
 	socket_t client_socket;
 	std::atomic<bool> is_connected;
 	// tries to connect once
@@ -22,9 +22,12 @@ private:
 	void reconnect_indefinitely();
 
 public:
-	ServerConnector(const std::string& server_ip, int server_port);
+	ServerConnector(const std::string& server_ip, std::uint16_t server_port);
 	~ServerConnector();
 	std::optional<socket_t> get_client_socket() const;
+	std::string get_server_ip() const;
+	std::uint16_t get_server_port() const;
+	
 	std::string recv_input();
 	bool send_output(const std::string& message);
 };
