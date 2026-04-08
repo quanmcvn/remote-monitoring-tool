@@ -1,23 +1,21 @@
 #include "common/registry.hpp"
 
 #ifdef _WIN32
-namespace reg {
-
-std::error_code Key::set_wstring(const std::wstring& name, const std::wstring& value) {
+std::error_code RegKey::set_wstring(const std::wstring& name, const std::wstring& value) {
 
 	return setRaw(name, REG_SZ, reinterpret_cast<const BYTE*>(value.c_str()),
 	              static_cast<DWORD>((value.size() + 1) * sizeof(wchar_t)));
 }
 
-std::error_code Key::set_dword(const std::wstring& name, const DWORD& value) {
+std::error_code RegKey::set_dword(const std::wstring& name, const DWORD& value) {
 	return setRaw(name, REG_DWORD, reinterpret_cast<const BYTE*>(&value), sizeof(value));
 }
 
-std::error_code Key::set_qword(const std::wstring& name, const ULONGLONG& value) {
+std::error_code RegKey::set_qword(const std::wstring& name, const ULONGLONG& value) {
 	return setRaw(name, REG_QWORD, reinterpret_cast<const BYTE*>(&value), sizeof(value));
 }
 
-std::optional<std::wstring> Key::get_wstring(const std::wstring& name, std::error_code& ec) const {
+std::optional<std::wstring> RegKey::get_wstring(const std::wstring& name, std::error_code& ec) const {
 	DWORD type;
 	std::vector<BYTE> buffer;
 
@@ -37,7 +35,7 @@ std::optional<std::wstring> Key::get_wstring(const std::wstring& name, std::erro
 	return std::wstring(data, len);
 }
 
-std::optional<DWORD> Key::get_dword(const std::wstring& name, std::error_code& ec) const {
+std::optional<DWORD> RegKey::get_dword(const std::wstring& name, std::error_code& ec) const {
 	DWORD type;
 	std::vector<BYTE> buffer;
 
@@ -50,7 +48,7 @@ std::optional<DWORD> Key::get_dword(const std::wstring& name, std::error_code& e
 	return value;
 }
 
-std::optional<ULONGLONG> Key::get_qword(const std::wstring& name, std::error_code& ec) const {
+std::optional<ULONGLONG> RegKey::get_qword(const std::wstring& name, std::error_code& ec) const {
 	DWORD type;
 	std::vector<BYTE> buffer;
 
@@ -62,6 +60,5 @@ std::optional<ULONGLONG> Key::get_qword(const std::wstring& name, std::error_cod
 	std::memcpy(&value, buffer.data(), sizeof(ULONGLONG));
 	return value;
 }
-} // namespace reg
 
 #endif

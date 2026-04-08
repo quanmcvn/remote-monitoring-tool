@@ -10,28 +10,26 @@
 #include <system_error>
 #include <cstring>
 
-namespace reg {
-
-class Key {
+class RegKey {
 private:
 	HKEY hKey = nullptr;
 	std::wstring sub_key;
 
 public:
-	Key() = delete;
+	RegKey() = delete;
 
-	Key(HKEY root, const std::wstring& sub_key, REGSAM access = KEY_READ | KEY_WRITE)
+	RegKey(HKEY root, const std::wstring& sub_key, REGSAM access = KEY_READ | KEY_WRITE)
 	    : sub_key(sub_key) {
-		openOrCreate(root, sub_key, access);
+		open_or_create(root, sub_key, access);
 	}
 
-	~Key() {
+	~RegKey() {
 		if (hKey) {
 			RegCloseKey(hKey);
 		}
 	}
 
-	std::error_code openOrCreate(HKEY root, const std::wstring& sub_key, REGSAM access) {
+	std::error_code open_or_create(HKEY root, const std::wstring& sub_key, REGSAM access) {
 		HKEY temp = nullptr;
 		LONG res = RegCreateKeyExW(root, sub_key.c_str(), 0, nullptr, REG_OPTION_NON_VOLATILE,
 		                           access, nullptr, &temp, nullptr);
@@ -82,8 +80,6 @@ private:
 		return {};
 	}
 };
-
-} // namespace reg
 
 #endif
 

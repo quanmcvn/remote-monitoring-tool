@@ -32,7 +32,7 @@ void Config::deserialize(std::istream& is) {
 int Config::write_config() const {
 	RegDeleteTreeW(HKEY_CURRENT_USER, REGISTRY_PREFIX);
 	{
-		reg::Key key(HKEY_CURRENT_USER, REGISTRY_PREFIX);
+		RegKey key(HKEY_CURRENT_USER, REGISTRY_PREFIX);
 		key.set_dword(L"count", this->config_entries.size());
 	}
 	auto config_entries_to_write = config_entries;
@@ -41,7 +41,7 @@ int Config::write_config() const {
 	}
 
 	for (int i = 0; i < config_entries_to_write.size(); ++i) {
-		reg::Key key(HKEY_CURRENT_USER, REGISTRY_PREFIX + std::wstring(L"\\") + std::to_wstring(i));
+		RegKey key(HKEY_CURRENT_USER, REGISTRY_PREFIX + std::wstring(L"\\") + std::to_wstring(i));
 		config_entries_to_write[i].serialize_registry(key);
 	}
 	// pretty much always work
@@ -53,7 +53,7 @@ int Config::read_config() {
 	std::error_code ec;
 	int count = 0;
 	{
-		reg::Key key(HKEY_CURRENT_USER, REGISTRY_PREFIX);
+		RegKey key(HKEY_CURRENT_USER, REGISTRY_PREFIX);
 		auto n_count = key.get_dword(L"count", ec);
 		if (ec || !n_count.has_value()) {
 			std::cerr << "config: failed reading 'count' from " << to_string(REGISTRY_PREFIX)
@@ -64,7 +64,7 @@ int Config::read_config() {
 	}
 	this->config_entries.resize(count);
 	for (int i = 0; i < count; ++i) {
-		reg::Key key(HKEY_CURRENT_USER, REGISTRY_PREFIX + std::wstring(L"\\") + std::to_wstring(i));
+		RegKey key(HKEY_CURRENT_USER, REGISTRY_PREFIX + std::wstring(L"\\") + std::to_wstring(i));
 		if (this->config_entries[i].deserialize_registry(key) != 0) {
 			return_code = 1;
 		}
