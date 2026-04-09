@@ -1,0 +1,37 @@
+@startuml config_log
+
+class ConfigEntry {
+	-process_name: string
+	-cpu_usage: uint32_t
+	-mem_usage: uint64_t
+	-disk_usage: uint64_t
+	-network_usage: uint64_t
+}
+
+enum LogType {
+	CPU
+	MEM
+	DISK
+	NET
+}
+
+class LogEntry {
+	-id: uint64_t
+	-process_name: string
+	-timestamp_ms: uint64_t
+	-log_type: LogType
+	-value: uint64_t
+}
+
+LogEntry --> LogType
+
+class Config {
+	-config_entries: vector<ConfigEntry>
+	+write_config(): int
+	+read_config(): int
+	{static} +default_config(): Config
+}
+
+Config *-- ConfigEntry: config_entries [*]
+
+@enduml

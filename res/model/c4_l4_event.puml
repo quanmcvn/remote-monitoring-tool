@@ -1,0 +1,42 @@
+@startuml event
+
+class Event {}
+
+class NetworkRecvEvent {
+	-ip: string
+	-port: uint16_t
+	-payload: string
+	+get_ip(): string
+	+get_port(): uint16_t
+	+get_payload(): string
+}
+NetworkRecvEvent --|> Event
+
+class NetworkSendEvent {
+	-ip: string
+	-port: uint16_t
+	-payload: string
+	+get_ip(): string
+	+get_port(): uint16_t
+	+get_payload(): string
+}
+NetworkSendEvent --|> Event
+
+class InputEvent {
+	-payload: string
+	+get_payload(): string
+}
+InputEvent --|> Event
+
+!define Callback std::function<void(const Event&)>
+
+class EventBus {
+	{field} -subscribers: vector<Callback>
+	-subscribers_mutex: mutex
+	+subscribe(Callback cb): void
+	+publish(const Event& event): void
+}
+
+EventBus ..> Event: uses
+
+@enduml

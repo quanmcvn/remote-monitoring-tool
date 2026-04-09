@@ -1,0 +1,16 @@
+@startuml client_client_logger
+
+!include_once c4_l4_client.puml
+
+class ClientLogger {
+	-config: Config
+	-log_queue: LogQueue 
+
+public:
+	ClientLogger(Config config, LogQueue log_queue, EventBus& event_bus);
+	void set_config(Config config);
+	void generate_log(const ProcessTable& process_table);
+	vector<LogEntry> get_batch_log(uint32_t batch_size) const;
+}
+
+@enduml

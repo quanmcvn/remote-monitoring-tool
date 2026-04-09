@@ -1,0 +1,40 @@
+@startuml client_process_stat
+
+class CpuStat {
+	+cpu_usage: uint64_t
+	+cpu_idle: uint64_t
+}
+
+class DiskStat {
+	+disk_read: optional<uint64_t>
+	+disk_write: optional<uint64_t>
+}
+
+class NetworkStat {
+	+network_recv: optional<uint64_t>
+	+network_send: optional<uint64_t>
+}
+
+class ProcessStat {
+	+cpu_usage_percent: uint32_t
+	+mem_usage: uint64_t
+	+disk_usage: DiskStat
+	+network_usage: NetworkStat 
+}
+
+ProcessStat --> DiskStat
+ProcessStat --> NetworkStat
+
+class ProcessListing {
+	-pid: uint32_t;
+	-process_name: string
+	-args: vector<string>
+
+	+get_pid(): uint32_t
+	+get_process_name(): string 
+	+get_args(): vector<string>
+	+get_args_as_string(): string
+}
+
+
+@enduml

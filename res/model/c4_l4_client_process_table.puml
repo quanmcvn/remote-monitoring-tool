@@ -1,0 +1,53 @@
+@startuml client_process_table
+
+!include_once c4_l4_client_process_stat.puml
+
+class ProcessLastStat {
+	+total_cpu_usage: uint64_t
+	+disk_stat: DiskStat
+}
+
+class PcapHandler {
+	-handle: pcap_t*
+	+process_packets(const uint32_t local_ip, const unordered_map<uint16_t, uint32_t>& port_to_pid_map): unordered_map<uint32_t, NetworkStat>
+}
+
+class ProcessFullStat {
+	pid: uint32_t
+	meta: ProcessListing*
+	stat: ProcessStat* 
+}
+
+ProcessFullStat ..> ProcessListing
+ProcessFullStat ..> ProcessStat
+
+enum ProcessSortType {
+	CPU
+	MEM
+	DISK_READ
+	DISK_WRITE
+	NETWORK_RECV
+	NETWORK_SEND
+}
+
+class ProcessTable {
+	-list_table: unordered_map<uint32_t, ProcessListing>
+	-stat_table: unordered_map<uint32_t, ProcessStat>
+	-last_stat_table: unordered_map<uint32_t, ProcessLastStat>
+	-pcap_handler: PcapHandler
+
+	+update_table(): void
+	+display_table(): string 
+	+get_sorted(ProcessSortType type, uint32_t limit): vector<ProcessFullStat>
+	+get_map_program_name_resource(): unordered_map<string, ProcessStat>
+}
+
+ProcessTable *-- ProcessListing: list_table [*]
+ProcessTable *-- ProcessStat: stat_table [*]
+ProcessTable *-- ProcessLastStat: last_stat_table [*]
+ProcessTable *-- PcapHandler
+ProcessTable --> CpuStat: uses
+ProcessTable --> ProcessFullStat: uses
+ProcessTable --> ProcessSortType: uses
+
+@enduml

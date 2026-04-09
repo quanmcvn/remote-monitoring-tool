@@ -1,0 +1,40 @@
+@startuml component_server
+
+!include <C4/C4_Component>
+
+Person(admin, "System Administrator", "System Administrator, using RMT System to monitor remote systems")
+
+System_Boundary(server_system, "RMT Server") {
+	Container_Boundary(server, "Server") {
+		Component(server_cli, "Server CLI", "C++ file: server/client_manager.cpp", "REPL reading from stdin. Parse and send config to client via Client Manager")
+		Component(server_event_bus, "Server Event Bus", "C++ file: common/event_bus.cpp", "Acts as a central hub for events (e.g. user input, network send and receive)")
+		Component(server_client_manager, "Client Manager", "C++ file: server/client_manager.cpp", "Manages client connection, sends message to appropiate client via Server Event Bus")
+		Component(server_network_receive, "Client Receive", "C++ file: server/client_handler.cpp", "A thread which receives messages from client")
+		Component(server_network_send, "Network Send", "C++ file: server/client_manager.cpp", "A thread which sends messages to client")
+		Component(server_client_handling_thread, "Client Handler", "C++ file: server/client_handler.cpp", "Receives logs from client and write to disk")
+		Component(server_network_acceptor, "Network Acceptor", "C++ file: server/client_manager.cpp", "Binds TCP socket, listens and accepts new client connection, spawns new thread for each connection")
+		Component(common_serializable, "Serializable Helper", "C++ file: common/serializable.cpp, common/serializable.hpp", "Serialize and deserialize messages")
+	}
+	ContainerDb(server_log, "Server Log Files", "File system", "Stores logs from client")
+}
+
+System_Ext(client, "Client", "A client running RMT client")
+
+Rel(admin, server_cli, "Input commands through CLI", "TUI (stdin/stdout)")
+Rel(server_cli, server_client_manager, "Sends input", "Function call")
+Rel(server_client_manager, server_event_bus, "Sends parsed config to be sent over network  (via emitting network send event)", "Function call")
+Rel(server_client_manager, server_network_send, "Spawn new thread", "Thread spawn")
+Rel(server_network_acceptor, server_client_handling_thread, "Spawns new thread", "Thread spawn")
+Rel(server_client_handling_thread, server_network_receive, "Spawns new thread", "Thread spawn")
+Rel(server_network_receive, server_event_bus, "Emits network receive event", "Function call")
+Rel(server_client_handling_thread, server_log, "Stores log files", "File I/O")
+Rel(server_client_handling_thread, server_event_bus, "Send ack over network to client (via emitting network send event)", "Function call")
+Rel(server_client_handling_thread, server_event_bus, "Receives logs and 'config ok' from client", "Callback")
+Rel(server_event_bus, common_serializable, "Serialize and deserialize message", "Function call")
+Rel(server_network_receive, client, "Receives messages from client", "TCP socket")
+Rel(server_network_receive, common_serializable, "Serialize and deserialize message", "Function call")
+Rel(server_network_send, client, "Sends messages to client", "TCP socket")
+Rel(server_network_send, server_event_bus, "Gets messages to send to client", "Callback")
+Rel(server_network_send, common_serializable, "Serialize and deserialize message", "Function call")
+
+@enduml

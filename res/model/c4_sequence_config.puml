@@ -1,0 +1,54 @@
+@startuml sequence_config
+
+!include <C4/C4_Sequence>
+
+Person(admin, "System Administrator", "System Administrator, using RMT System to monitor remote systems")
+
+Container_Boundary(server, "Server") 
+	Component(server_cli, "Server CLI", "C++ file: server/client_manager.cpp", "REPL reading from stdin. Parse and send config to client via Client Manager")
+	Component(server_event_bus, "Server Event Bus", "C++ file: common/event_bus.cpp", "Acts as a central hub for events (e.g. user input, network send and receive)")
+	Component(server_client_manager, "Client Manager", "C++ file: server/client_manager.cpp", "Manages client connection, sends message to appropiate client via Server Event Bus")
+	Component(server_event_bus2, "Server Event Bus", "C++ file: common/event_bus.cpp", "Acts as a central hub for events (e.g. user input, network send and receive)")
+	Component(common_serializable, "Serializable Helper", "C++ file: common/serializable.cpp, common/serializable.hpp", "Serialize and deserialize messages")
+Boundary_End()
+
+
+Container_Boundary(client, "Client") 
+	Component(client_outside, "Server connector", "C++ file: client/server_connector.cpp", "Establishes TCP connection with the server, tries to reconnect if isn't connected, receives input and sends results")
+	Component(client_event_bus, "Client Event Bus", "C++ file: common/event_bus.cpp", "Acts as a central hub for events (e.g. network send and receive)")
+	Component(client_logger, "Client Logger", "C++ file: client/client_logger.cpp", "")
+Boundary_End()
+
+Rel(admin, server_cli, "Input config file through CLI, e.g. config config.json")
+Rel(server_cli, server_event_bus, "Emits an input event")
+Rel(server_event_bus, server_client_manager, "Processes input")
+alt config file invalid
+	Rel(server_client_manager, admin, "Shows 'invalid config file' to admin")
+
+else config file valid
+Rel(server_client_manager, server_event_bus2, "Emits a network send event")
+Rel(server_event_bus2, common_serializable, "Serializes message and sends")
+
+Rel(common_serializable, client_outside, "Receives and deserializes message")
+Rel(client_outside, client_event_bus, "Emits an network receive event")
+Rel(client_event_bus, client_logger, "Sends input")
+Rel(client_logger, client_logger, "Updates config, writes config to disk/registry")
+Rel(client_logger, server_event_bus, "Returns 'config ok' to server")
+Rel(server_event_bus, admin, "Shows 'config ok' to admin")
+end
+' Rel(client_while, client_while, "Checks file exists, is regular file, and readable")
+' alt file doesn't exist or is not regular file or not readable
+' Rel(client_while, server_client_handling_thread, "Sends 0 (8 bytes) signifying error")
+' Rel(client_while, server_client_handling_thread, "Sends error code")
+' else check succeeded
+' 	Rel(client_while, server_client_handling_thread, "Sends 8 bytes as file size")
+' 	loop
+' 		Rel(client_while, server_client_handling_thread, "Sends 8192-byte chunk until the whole file is streamed")
+' 	end
+' 	Rel(client_while, server_client_handling_thread, "Sends 'ok'")
+' end
+' Rel(server_client_handling_thread, admin, "Shows 'download completed' or error code to user")
+
+
+SHOW_LEGEND()
+@enduml

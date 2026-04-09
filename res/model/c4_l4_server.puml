@@ -1,0 +1,48 @@
+@startuml server
+
+!include_once c4_l4_common.puml
+
+class ClientInfo {
+	+client_id: int
+	+client_socket: socket_t
+	+client_ip: string 
+	+client_port: uint16_t 
+}
+
+class ClientHandler {
+	-client_info: ClientInfo
+	-event_bus: EventBus& 
+	+get_client_id(): int 
+	+get_client_info(): ClientInfo 
+	-recv_input_from_client(EventBus& event_bus): void <<thread>>
+	-handle_recv_log(EventBus& event_bus, std::istringstream& iss): void
+}
+
+ClientHandler --> ClientInfo
+ClientHandler --> EventBus: uses
+
+
+class ClientManager {
+	-client_handlers: std::unordered_map<int, ClientHandler>
+	-client_handlers_mutex: std::mutex
+	-server_socket: socket_t
+	-event_bus: EventBus&
+	-is_running: bool 
+
+	+add_new_client(ClientHandler client_handler): void
+	+run(): void
+	-accept_new_client(): void <<thread>>
+	-register_user_input_handler(): void 
+	-register_send_output_to_client(): void
+	+send_output_to_client(int client_id, std::string command): void
+	+get_client_info_from_ip_and_port(const std::string& client_ip, std::uint16_t client_port): ClientInfo
+	+find_client_from_input(const std::string& input): std::pair<ClientInfo, std::string>
+}
+
+ClientManager *-- ClientHandler: client_handlers [*]
+
+ClientHandler --> LogEntry: uses
+ClientManager --> SerializableHelper: uses
+ClientManager --> Config: uses
+
+@enduml

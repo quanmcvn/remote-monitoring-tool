@@ -1,0 +1,44 @@
+@startuml sequence_log
+' actor "Client Agent" as Client
+' participant "Server" as Server
+
+!include <C4/C4_Sequence>
+
+Container_Boundary(client, "Client") 
+	Component(client_logger, "Client Logger", "C++ file: client/client_logger.cpp", "")
+	Component(client_process, "Process Table", "C++ file: client/process_table.cpp", "Uses OS-native API to get processes running and their cpu, memory, disk, network usage")
+	Component(client_event_bus, "Client Event Bus", "C++ file: common/event_bus.cpp", "Acts as a central hub for events (e.g. network send and receive)")
+	Component(client_outside, "Server connector", "C++ file: client/server_connector.cpp", "Establishes TCP connection with the server, tries to reconnect if isn't connected, receives input and sends results")
+Boundary_End()
+
+Container_Boundary(server, "Server") 
+	Component(server_event_bus, "Server Event Bus", "C++ file: common/event_bus.cpp", "Acts as a central hub for events (e.g. user input, network send and receive)")
+	Component(server_client_handling_thread, "Client Handler", "C++ file: server/client_handler.cpp", "Receives logs from client and write to disk")
+	' Component(common_serializable, "Serializable Helper", "C++ file: common/serializable.cpp, common/serializable.hpp", "Serialize and deserialize messages")
+Boundary_End()
+
+
+loop Periodic Log Collection
+	Rel(client_logger, client_process, "Collect system processes' information")
+	Rel(client_process, client_logger, "Generate logs")
+	Rel(client_logger, client_logger, "Write logs to disk")
+	Rel(client_logger, client_event_bus, "Emit network send event")
+	Rel(client_event_bus, client_outside, "Send logs to server")
+	alt Server is offline
+		Rel(client_outside, client_logger, "Server not online")
+	else Server is online
+		Rel(client_outside, server_event_bus, "Server receive logs")
+		Rel(server_event_bus, server_client_handling_thread, "Receive event")
+		Rel(server_client_handling_thread, server_client_handling_thread, "Process logs, write to disk")
+		Rel(server_client_handling_thread, server_event_bus, "Send 'ack <id>' to client")
+		Rel(server_event_bus, client_outside, "Receive message from server")
+		Rel(client_outside, client_event_bus, "Emit network receive event")
+		Rel(client_event_bus, client_logger, "Receive 'ack <id> from server")
+		Rel(client_logger, client_logger, "Process 'ack <id>', move on to newer logs to be sent")
+	end
+    ' Client -> Client: collect system/process logs
+    ' Client -> Server: send logs
+    ' Server -> Server: store/process logs
+end
+
+@enduml

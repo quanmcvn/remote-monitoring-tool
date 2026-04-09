@@ -1,0 +1,21 @@
+@startuml container
+
+!include <C4/C4_Container>
+
+Person(admin, "System Administrator", "System Administrator, using RMT System to monitor remote systems")
+
+System_Boundary(server_system, "Server Host") {
+	Container(server, "Server", "Process", "A process running on server host, listening for client connections, providing CLI to input, distributing to clients, and receiving logs from clients")
+	ContainerDb(server_log, "Server Log Files", "File system", "Stores logs from client")
+}
+System_Boundary(client_system, "Target Client") {
+	Container(client, "Client", "Process", "A process running silently on client, collecting processes' information, connects to server, receives config and sends logs")
+	ContainerDb(client_log, "Client Log Files", "File system", "Stores logs from client, acts as external buffer to ensure that logs aren't lost when client crashes")
+}
+Rel(admin, server, "Input config file through CLI", "TUI (stdin/stdout)")
+Rel(server, server_log, "Stores logs received from server", "File I/O")
+Rel(server, client, "Sends configs, receives logs", "TCP Socket (Reverse connection)")
+Rel(client, server, "Receives configs, sends logs", "TCP Socket (Reverse connection)")
+Rel(client, client_log, "Stores logs for client", "File I/O")
+
+@enduml

@@ -1,0 +1,53 @@
+@startuml common
+
+skin rose
+
+skinparam classAttributeIconSize 0
+
+!include_once c4_l4_event.puml
+!include_once c4_l4_config_log.puml
+
+class InputHandler <<thread>> {
+	-event_bus: EventBus& 
+	-do_input_indefinitely(): void
+}
+
+InputHandler --> EventBus
+
+class RegKey {
+	-hKey: HKEY
+	-sub_key: wstring
+	+open_or_create(HKEY root, const wstring& sub_key, REGSAM access): std::error_code
+	+valid(): bool
+	+get_sub_key(): string
+	-setRaw(const wstring& name, DWORD type, const BYTE* data, DWORD size): std::error_code 
+	-queryRaw(const wstring& name, DWORD& type, vector<BYTE>& buffer): std::error_code
+	+set_wstring(const wstring& name, const wstring& value): std::error_code
+	+get_wstring(const wstring& name, std::error_code& ec): optional<wstring>
+	+set_dword(const wstring& name, const DWORD& value): std::error_code
+	+get_dword(const wstring& name, std::error_code& ec): optional<DWORD>
+	+set_qword(const wstring& name, const ULONGLONG& value): std::error_code
+	+get_qword(const wstring& name, std::error_code& ec): optional<ULONGLONG>
+}
+
+Config --> RegKey: uses
+
+class SerializableHelper {
+	{static} +swap_endian(uint32_t value): uint32_t
+	{static} +swap_endian(int32_t value): int32_t
+	{static} +swap_endian(uint64_t value): uint64_t
+	{static} +write_uint32(ostream &os, uint32_t value): void
+	{static} +read_uint32(istream &is): uint32_t
+	{static} +write_string(ostream &os, const string &str): void
+	{static} +read_string(istream &is): string
+	{static} +write_vector_string(ostream &os, const vector<string> &vec): void
+	{static} +read_vector_string(istream &is): vector<string>
+	{static} +template <typename T> void write_vector_serializeable(ostream &os, const vector<T> &vec)
+	{static} +template <typename T> vector<T> read_vector_serializeable(istream &is)
+	{static} +send_exact(socket_t socket_fd, const void *data, size_t size): void
+	{static} +recv_exact(socket_t socket_fd, const void *data, size_t size): void
+	{static} +send_message(socket_t socket_fd, const string &payload): void
+	{static} +recv_message(socket_t socket_fd): string
+}
+
+@enduml

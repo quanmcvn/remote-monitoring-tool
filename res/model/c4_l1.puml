@@ -1,0 +1,13 @@
+@startuml context
+
+!include <C4/C4_Context>
+
+Person(admin, "System Administrator", "System Administrator, using RMT System to monitor remote systems")
+System(server, "Server Host", "Server machine running Linux or Windows, RMT server is installed on this machine")
+System_Ext(client, "Target Client", "Client running Linux or Windows, RMT client is installed on this machine")
+
+Rel(admin, server, "Input config file through CLI", "TUI (stdin/stdout)")
+Rel(server, client, "Sends config files, receives monitoring results", "TCP Socket (Reverse connection)")
+Rel(client, server, "Receives config files, sends monitoring results", "TCP Socket (Reverse connection)")
+
+@enduml

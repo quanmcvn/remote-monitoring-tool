@@ -1,0 +1,18 @@
+@startuml client_server_connector
+
+class ServerConnector {
+	-server_ip: string 
+	-server_port: uint16_t
+	-client_socket: socket_t 
+	-is_connected: atomic<bool> 
+
+	-try_connect(): bool
+	-reconnect_indefinitely(): void <<thread>>
+	+get_client_socket(): optional<socket_t> 
+	+get_server_ip(): string 
+	+get_server_port(): uint16_t 
+	+recv_input(): string 
+	+send_output(const string& message): bool
+}
+
+@enduml

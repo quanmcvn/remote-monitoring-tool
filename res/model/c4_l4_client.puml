@@ -1,0 +1,46 @@
+@startuml client
+
+!include_once c4_l4_common.puml
+!include_once c4_l4_client_process_table.puml
+!include_once c4_l4_client_server_connector.puml
+
+class LogQueue {
+	-log_file: string
+	-ack_file: string
+	-ack_id: uint64_t
+	-log_entries: deque<LogEntry> 
+	-new_id: uint64_t
+	+add_log(LogEntry log_entry): void
+	+get_batch_log(uint32_t batch_size): vector<LogEntry>
+	+ack_log(uint64_t id): void
+	+get_new_id(): uint64_t
+}
+
+LogQueue --> LogEntry: uses
+
+class ClientLogger {
+	-config: Config
+	-log_queue: LogQueue 
+
+	+set_config(Config config): void 
+	+generate_log(const ProcessTable& process_table):
+	+get_batch_log(uint32_t batch_size): vector<LogEntry>
+}
+
+ClientLogger *-- Config
+ClientLogger *-- LogQueue
+ClientLogger --> ProcessTable: uses
+
+ServerConnector --> SerializableHelper: uses
+
+class GlobalFunction {
+	{static} +receive_server_input(ServerConnector& server_connector, EventBus& event_bus): void <<thread>>
+	{static} +register_send_outout_to_server(ServerConnector& server_connector, EventBus& event_bus): void
+	{static} +register_recv_config(ClientLogger& client_logger, ServerConnector& server_connector, EventBus& event_bus): void
+}
+
+GlobalFunction --> ServerConnector: uses
+GlobalFunction --> ClientLogger: uses
+GlobalFunction --> EventBus: uses
+
+@enduml

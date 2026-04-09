@@ -1,0 +1,31 @@
+@startuml component_client
+
+!include <C4/C4_Component>
+
+System_Ext(server, "Server Host", "A server process running RMT System")
+System_Ext(linux, "Linux OS", "Linux OS: Provides /proc")
+System_Ext(windows, "Windows OS", "Windows OS: Provides Win32 API")
+
+System_Boundary(client_system, "RMT Client") {
+	Container_Boundary(client, "Client") {
+		Component(client_outside, "Server connector", "C++ file: client/server_connector.cpp", "Establishes TCP connection with the server, tries to reconnect if isn't connected, receives input and sends results")
+		Component(client_event_bus, "Client Event Bus", "C++ file: common/event_bus.cpp", "Acts as a central hub for events (e.g. network send and receive)")
+		Component(client_logger, "Client Logger", "C++ file: client/client_logger.cpp", "")
+		Component(client_process, "Process Table", "C++ file: client/process_table.cpp", "Uses OS-native API to get processes running and their cpu, memory, disk, network usage")
+		Component(common_serializable, "Serializable Helper", "C++ file: common/serializable.cpp, common/serializable.hpp", "Serialize and deserialize messages")
+	}
+	ContainerDb(client_log, "Client Log Files", "File system", "Stores logs from client, acts as external buffer to ensure that logs aren't lost when client crashes")
+}
+
+Rel(client_outside, server, "Sends and receives message", "TCP socket")
+Rel(client_event_bus, client_outside, "Receives message from server", "Callback")
+Rel(client_outside, client_event_bus, "Sends logs to server", "Function call")
+Rel(client_logger, client_process, "Gets processes running and their resources", "Function call")
+Rel(client_logger, client_log, "Store logs")
+Rel(client_logger, client_event_bus, "Sends logs to be sent to server", "Function call")
+Rel(client_logger, client_event_bus, "Receives config from server", "Callback")
+Rel(client_outside, common_serializable, "Serialize and deserialize message", "Function call")
+Rel(client_process, linux, "Uses OS-native API", "system call")
+Rel(client_process, windows, "Uses OS-native API", "Win32 API call")
+
+@enduml
