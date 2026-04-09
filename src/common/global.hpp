@@ -12,7 +12,7 @@
 // MB
 #define MEM_UNIT MB
 // MB
-#define DISK_UNIT MB
+#define DISK_UNIT KB
 // KB
 #define NETWORK_UNIT KB
 

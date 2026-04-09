@@ -9,6 +9,16 @@
 #include <iostream>
 
 PcapHandler::PcapHandler() {
+	handle = NULL;
+}
+
+PcapHandler::~PcapHandler() {
+	if (handle != NULL) {
+		pcap_close(handle);
+	}
+}
+
+void PcapHandler::setup_network() {
 	pcap_if_t* alldevs;
 	char errbuf[PCAP_ERRBUF_SIZE];
 
@@ -36,12 +46,6 @@ PcapHandler::PcapHandler() {
 	}
 	if (pcap_setnonblock(handle, 1, errbuf) < 0) {
 		std::cerr << "Error setting non-blocking mode: " << errbuf << "\n";
-	}
-}
-
-PcapHandler::~PcapHandler() {
-	if (handle != NULL) {
-		pcap_close(handle);
 	}
 }
 
@@ -113,6 +117,10 @@ std::unordered_map<std::uint32_t, NetworkStat> PcapHandler::process_packets(
 #include <iostream>
 
 PcapHandler::PcapHandler() {
+	handle = NULL;
+}
+
+void PcapHandler::setup_network() {
 	char errbuf[PCAP_ERRBUF_SIZE];
 	handle = pcap_open_live("ens33", PCAP_ERRBUF_SIZE, 1, 1000, errbuf);
 	if (handle == NULL) {

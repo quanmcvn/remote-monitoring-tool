@@ -579,6 +579,10 @@ void ProcessTable::update_table() {
 
 #endif
 
+void ProcessTable::setup_network() {
+	pcap_handler.setup_network();
+}
+
 std::string ProcessTable::display_table() const {
 	constexpr uint32_t max_char_per_line = 140; // arbitrarily chosen
 	constexpr uint32_t num_lines = 30;          // arbitrarily chosen

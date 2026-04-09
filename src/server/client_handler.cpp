@@ -49,11 +49,15 @@ ClientHandler::ClientHandler(int n_client_id, socket_t n_client_socket,
 }
 
 void ClientHandler::recv_input_from_client(EventBus& event_bus) {
-	while (true) {
-		std::string message = SerializableHelper::recv_message(this->client_info.client_socket);
-		if (message == "")
-			continue;
-		event_bus.publish(NetworkRecvEvent(this->client_info.client_ip, this->client_info.client_port, message));
+	try {
+		while (true) {
+			std::string message = SerializableHelper::recv_message(this->client_info.client_socket);
+			if (message == "")
+				continue;
+			event_bus.publish(NetworkRecvEvent(this->client_info.client_ip, this->client_info.client_port, message));
+		}
+	} catch (std::exception& e) {
+		std::cerr << "recv_input_from_client: failed to recv from client #" << this->get_client_id() << ": " << e.what() << " (client probably disconnected)\n";
 	}
 }
 

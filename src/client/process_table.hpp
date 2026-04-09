@@ -15,9 +15,11 @@ public:
 };
 
 class ProcessTable {
-private:
+	// protected to use in tests
+protected:
 	std::unordered_map<std::uint32_t, ProcessListing> list_table;
 	std::unordered_map<std::uint32_t, ProcessStat> stat_table;
+private:
 	std::unordered_map<std::uint32_t, ProcessLastStat> last_stat_table;
 	PcapHandler pcap_handler;
 
@@ -33,7 +35,9 @@ public:
 		    : pid(n_pid), meta(n_meta), stat(n_stat) {}
 	};
 	// update stat_table, additionally change list_table if process died/spawned
-	void update_table();
+	// virtual to use in tests by deriving
+	void setup_network();
+	virtual void update_table();
 	std::string display_table() const;
 	std::vector<ProcessFullStat> get_sorted(ProcessSortType type, std::uint32_t limit = 0) const;
 	// get a map from program name to full resource consumption (all processes with same name are

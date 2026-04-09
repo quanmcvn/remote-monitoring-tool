@@ -51,6 +51,15 @@ int LogEntry::deserialize_str(std::istream& is) {
 	return 0;
 }
 
+bool LogEntry::operator==(const LogEntry& rhs) const {
+	if (this->id != rhs.id) return false;
+	if (this->process_name != rhs.process_name) return false;
+	if (this->timestamp_ms != rhs.timestamp_ms) return false;
+	if (this->log_type != rhs.log_type) return false;
+	if (this->value != rhs.value) return false;
+	return true;
+}
+
 std::uint64_t LogEntry::get_id() const { return id; }
 std::string LogEntry::get_process_name() const { return process_name; }
 std::uint64_t LogEntry::get_timestamp_ms() const { return timestamp_ms; }

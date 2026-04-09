@@ -74,9 +74,7 @@ int server_main(int argc, char* argv[]) {
 	InputHandler input_handler(event_bus);
 	ClientManager client_manager(event_bus, server_socket);
 
-	while (true) {
-		// wait here until i know something else to do
-	}
+	client_manager.run();
 
 	network_cleanup();
 

@@ -26,6 +26,8 @@ public:
 	void serialize_str(std::ostream& os) const;
 	int deserialize_str(std::istream& is);
 
+	bool operator==(const LogEntry& rhs) const;
+
 	std::uint64_t get_id() const;
 	std::string get_process_name() const;
 	std::uint64_t get_timestamp_ms() const;
