@@ -166,28 +166,27 @@ void ProcessTable::update_table() {
 			process_stat.mem_usage = mem;
 			process_stat.network_usage = pid_network_usage[pid];
 
-			// substracting network io because GetProcessIOCounter has all sort of io (not just disk)
-
-			if (disk_stat.disk_read.has_value() && process_stat.network_usage.network_recv.has_value()) {
-				disk_stat.disk_read = disk_stat.disk_read.value() - std::min(disk_stat.disk_read.value(), process_stat.network_usage.network_recv.value());
-			}
-
-			if (disk_stat.disk_write.has_value() && process_stat.network_usage.network_send.has_value()) {
-				disk_stat.disk_write = disk_stat.disk_write.value() - std::min(disk_stat.disk_write.value(), process_stat.network_usage.network_send.value());
-			}
-
 			DiskStat current_disk_delta;
 			if (disk_stat.disk_read.has_value()) {
 				current_disk_delta.disk_read =
-				    disk_stat.disk_read.value() -
-				    process_last_stat.disk_stat.disk_read.value_or<std::uint64_t>(0);
+				disk_stat.disk_read.value() -
+				process_last_stat.disk_stat.disk_read.value_or<std::uint64_t>(0);
 			}
 			if (disk_stat.disk_write.has_value()) {
 				current_disk_delta.disk_write =
-				    disk_stat.disk_write.value() -
-				    process_last_stat.disk_stat.disk_write.value_or<std::uint64_t>(0);
+				disk_stat.disk_write.value() -
+				process_last_stat.disk_stat.disk_write.value_or<std::uint64_t>(0);
+			}
+			// substracting network io because GetProcessIOCounter has all sort of io (not just disk)
+			if (current_disk_delta.disk_read.has_value() && process_stat.network_usage.network_recv.has_value()) {
+				current_disk_delta.disk_read = current_disk_delta.disk_read.value() - std::min(current_disk_delta.disk_read.value(), process_stat.network_usage.network_recv.value());
+			}
+
+			if (current_disk_delta.disk_write.has_value() && process_stat.network_usage.network_send.has_value()) {
+				current_disk_delta.disk_write = current_disk_delta.disk_write.value() - std::min(current_disk_delta.disk_write.value(), process_stat.network_usage.network_send.value());
 			}
 			process_last_stat.disk_stat = disk_stat;
+
 			process_stat.disk_usage = current_disk_delta;
 
 			CloseHandle(hProcess);
