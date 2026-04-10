@@ -50,7 +50,7 @@ std::uint64_t ConfigEntry::get_disk_usage() const { return this->disk_usage; };
 std::uint64_t ConfigEntry::get_network_usage() const { return this->network_usage; };
 
 #ifdef _WIN32
-void ConfigEntry::serialize_registry(reg::Key& reg_key) const {
+void ConfigEntry::serialize_registry(RegKey& reg_key) const {
 	reg_key.set_wstring(L"process_name", to_wstring(this->process_name));
 	reg_key.set_dword(L"cpu_usage", this->cpu_usage);
 	reg_key.set_qword(L"mem_usage", this->mem_usage);
@@ -58,7 +58,7 @@ void ConfigEntry::serialize_registry(reg::Key& reg_key) const {
 	reg_key.set_qword(L"network_usage", this->network_usage);
 }
 
-int ConfigEntry::deserialize_registry(reg::Key& reg_key) {
+int ConfigEntry::deserialize_registry(RegKey& reg_key) {
 	std::error_code ec;
 	int return_code = 0;
 	auto n_process_name = reg_key.get_wstring(L"process_name", ec);

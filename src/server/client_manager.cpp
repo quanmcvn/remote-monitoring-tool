@@ -18,7 +18,7 @@ ClientManager::ClientManager(EventBus& n_event_bus, socket_t n_server_socket)
 void ClientManager::add_new_client(ClientHandler client_handler) {
 	std::lock_guard<std::mutex> lock(this->client_handlers_mutex);
 	int id = client_handler.get_client_id();
-	client_handlers.emplace(id, std::move(client_handler));
+	client_handlers.emplace(id, client_handler);
 }
 
 void ClientManager::accept_new_client() {
@@ -104,7 +104,9 @@ void ClientManager::register_send_output_to_client() {
 			const NetworkSendEvent& network_event = *network_event_ptr;
 			std::cerr << "send_output_to_client: got network send event\n";
 			ClientInfo client_info = this->get_client_info_from_ip_and_port(
-			    network_event.get_ip(), network_event.get_port());
+				network_event.get_ip(), network_event.get_port());
+			std::cerr << "send_output_to_client: network_event: " << network_event.get_ip() << ":" << network_event.get_port() << "\n";
+			std::cerr << "send_output_to_client: client_info: " << client_info.client_id << " " << client_info.client_ip << ":" << client_info.client_port << "\n";
 			if (client_info.client_id == 0)
 				return;
 			std::cerr << "send_output_to_client: sending to client #" << client_info.client_id

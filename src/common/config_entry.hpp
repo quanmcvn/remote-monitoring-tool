@@ -44,8 +44,8 @@ public:
 	std::uint64_t get_network_usage() const;
 
 #ifdef _WIN32
-	void serialize_registry(reg::Key& reg_key) const;
-	int deserialize_registry(reg::Key& reg_key);
+	void serialize_registry(RegKey& reg_key) const;
+	int deserialize_registry(RegKey& reg_key);
 #endif
 };
 #endif

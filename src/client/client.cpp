@@ -146,10 +146,10 @@ int client_main(int argc, char* argv[]) {
 		logger.generate_log(table);
 		std::vector<LogEntry> log_entries = logger.get_batch_log(100);
 		if (!log_entries.empty()) {
-			std::cerr << "client: log size " << log_entries.size() << "\n";
-			for (const auto& entry : log_entries) {
-				std::cerr << entry.get_id() << " " << entry.get_log_type() << "\n";
-			}
+			// std::cerr << "client: log size " << log_entries.size() << "\n";
+			// for (const auto& entry : log_entries) {
+			// 	std::cerr << entry.get_id() << " " << entry.get_log_type() << "\n";
+			// }
 			std::ostringstream oss(std::ios::binary);
 			SerializableHelper::write_string(oss, "log");
 			SerializableHelper::write_vector_serializeable(oss, log_entries);

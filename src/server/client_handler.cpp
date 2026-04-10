@@ -15,26 +15,27 @@ ClientHandler::ClientHandler(int n_client_id, socket_t n_client_socket,
                              const std::string& n_client_ip, std::uint16_t n_client_port,
                              EventBus& n_event_bus)
     : client_info(n_client_id, n_client_socket, n_client_ip, n_client_port), event_bus(n_event_bus) {
-
-	std::thread t(&ClientHandler::recv_input_from_client, this, std::ref(event_bus));
+	std::thread t(&ClientHandler::recv_input_from_client, this, std::ref(event_bus), ClientInfo(n_client_id, n_client_socket, n_client_ip, n_client_port));
 	t.detach();
 
-	event_bus.subscribe([&](const Event& event) {
+	ClientInfo this_client_info(n_client_id, n_client_socket, n_client_ip, n_client_port);
+
+	event_bus.subscribe([this, this_client_info](const Event& event) {
 		if (const NetworkRecvEvent* network_event_ptr =
 		        dynamic_cast<const NetworkRecvEvent*>(&event)) {
 			const NetworkRecvEvent& network_event = *network_event_ptr;
-			if (network_event.get_ip() != client_info.client_ip)
+			if (network_event.get_ip() != this_client_info.client_ip)
 				return;
-			if (network_event.get_port() != client_info.client_port)
+			if (network_event.get_port() != this_client_info.client_port)
 				return;
 			std::string payload = network_event.get_payload();
 			std::istringstream iss(payload, std::ios::binary);
 			std::string response = SerializableHelper::read_string(iss);
 			std::cerr << "client_handler: got response '" << response << "' from client #"
-			          << this->client_info.client_id << ": " << this->client_info.client_ip << ":" << this->client_info.client_port
+			          << this_client_info.client_id << ": " << this_client_info.client_ip << ":" << this_client_info.client_port
 			          << "\n";
 			if (response == "log") {
-				this->handle_recv_log(event_bus, iss);
+				this->handle_recv_log(event_bus, this_client_info, iss);
 				return;
 			}
 			if (response == "config ok") {
@@ -42,27 +43,27 @@ ClientHandler::ClientHandler(int n_client_id, socket_t n_client_socket,
 				return;
 			}
 			std::cerr << "client_handler: got invalid response '" << response << "' from client #"
-			          << this->client_info.client_id << ": " << this->client_info.client_ip << ":" << this->client_info.client_port
+			          << this_client_info.client_id << ": " << this_client_info.client_ip << ":" << this_client_info.client_port
 			          << "\n";
 		}
 	});
 }
 
-void ClientHandler::recv_input_from_client(EventBus& event_bus) {
+void ClientHandler::recv_input_from_client(EventBus& event_bus, ClientInfo this_client_info) {
 	try {
 		while (true) {
-			std::string message = SerializableHelper::recv_message(this->client_info.client_socket);
+			std::string message = SerializableHelper::recv_message(this_client_info.client_socket);
 			if (message == "")
 				continue;
-			event_bus.publish(NetworkRecvEvent(this->client_info.client_ip, this->client_info.client_port, message));
+			event_bus.publish(NetworkRecvEvent(this_client_info.client_ip, this_client_info.client_port, message));
 		}
 	} catch (std::exception& e) {
-		std::cerr << "recv_input_from_client: failed to recv from client #" << this->get_client_id() << ": " << e.what() << " (client probably disconnected)\n";
+		std::cerr << "recv_input_from_client: failed to recv from client #" << this_client_info.client_id << ": " << e.what() << " (client probably disconnected)\n";
 	}
 }
 
-void ClientHandler::handle_recv_log(EventBus& event_bus, std::istringstream& iss) {
-	std::string client_log_file = "client-log-" + this->client_info.client_ip + ".txt";
+void ClientHandler::handle_recv_log(EventBus& event_bus, ClientInfo this_client_info, std::istringstream& iss) {
+	std::string client_log_file = "client-log-" + this_client_info.client_ip + ".txt";
 	std::uint64_t last_acked_id = 0;
 	std::string last_line = get_last_line_of_file(client_log_file);
 	if (!last_line.empty()) {
@@ -97,7 +98,7 @@ void ClientHandler::handle_recv_log(EventBus& event_bus, std::istringstream& iss
 	}
 	std::ostringstream oss(std::ios::binary);
 	SerializableHelper::write_string(oss, std::format("ack {}", last_acked_id));
-	event_bus.publish(NetworkSendEvent(this->client_info.client_ip, this->client_info.client_port, oss.str()));
+	event_bus.publish(NetworkSendEvent(this_client_info.client_ip, this_client_info.client_port, oss.str()));
 }
 
 int ClientHandler::get_client_id() const {
