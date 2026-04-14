@@ -10,11 +10,11 @@
 
 #ifdef _WIN32
 
+#include <winsock2.h>
+#include <windows.h>
 #include <iphlpapi.h>
 #include <psapi.h>
 #include <tlhelp32.h>
-#include <windows.h>
-#include <winsock2.h>
 
 namespace {
 
@@ -76,7 +76,6 @@ std::vector<std::uint32_t> get_list_pids() {
 	CloseHandle(snapshot);
 	return list_pids;
 }
-
 struct SocketPid {
 	std::uint32_t pid;
 	std::uint32_t local_ip;
@@ -116,6 +115,60 @@ std::vector<SocketPid> get_list_socket_pid() {
 
 } // namespace
 
+PdhHelper::PdhHelper() {
+	PdhOpenQuery(NULL, 0, &query);
+
+	PDH_STATUS pdh_status;
+	pdh_status = PdhAddCounterW(query, L"\\Process V2(*)\\IO Read Bytes/sec", 0, &read_counter);
+	if (pdh_status != ERROR_SUCCESS) {
+		std::cerr << "PdhOpenQuery failed for read_counter" << "\n";
+	}
+	pdh_status = PdhAddCounterW(query, L"\\Process V2(*)\\IO Write Bytes/sec", 0, &write_counter);
+	if (pdh_status != ERROR_SUCCESS) {
+		std::cerr << "PdhOpenQuery failed for write_counter" << "\n";
+	}
+	pdh_status = PdhAddCounterW(query, L"\\Process V2(*)\\Process ID", 0, &pid_counter);
+	if (pdh_status != ERROR_SUCCESS) {
+		std::cerr << "PdhOpenQuery failed for pid_counter" << "\n";
+	}
+	PdhCollectQueryData(query);
+}
+
+PdhHelper::~PdhHelper() {
+	if (query) {
+		PdhCloseQuery(query);
+	}
+}
+
+std::unordered_map<std::uint32_t, DiskStat> PdhHelper::query_disk() {
+	std::unordered_map<std::uint32_t, DiskStat> result;
+
+	if (PdhCollectQueryData(query) != ERROR_SUCCESS) {
+		return result;
+	}
+
+	auto reads = get_large_array(read_counter);
+	auto writes = get_large_array(write_counter);
+	auto pids = get_large_array(pid_counter);
+
+	size_t count = pids.size();
+
+	for (size_t i = 0; i < count; i++) {
+		std::uint32_t pid = static_cast<std::uint32_t>(pids[i].FmtValue.largeValue);
+
+		if (pid <= 0)
+			continue;
+
+		std::uint64_t read_bytes = (i < reads.size()) ? reads[i].FmtValue.largeValue : 0;
+
+		std::uint64_t write_bytes = (i < writes.size()) ? writes[i].FmtValue.largeValue : 0;
+
+		result[pid] = {read_bytes, write_bytes};
+	}
+
+	return result;
+}
+
 void ProcessTable::update_table() {
 	std::unordered_map<std::uint32_t, bool> seen;
 
@@ -136,6 +189,7 @@ void ProcessTable::update_table() {
 		port_to_pid_map[socket_pid.local_port] = socket_pid.pid;
 	}
 	std::unordered_map<std::uint32_t, NetworkStat> pid_network_usage;
+	std::unordered_map<std::uint32_t, DiskStat> pid_disk_usage = this->pdh_helper.query_disk();
 	std::uint32_t local_ip = list_socket_pid.begin()->local_ip;
 	pid_network_usage = this->pcap_handler.process_packets(local_ip, port_to_pid_map);
 
@@ -154,7 +208,7 @@ void ProcessTable::update_table() {
 			}
 			std::uint64_t total_cpu = get_process_total_cpu(hProcess);
 			std::uint64_t mem = get_process_memory(hProcess);
-			DiskStat disk_stat = get_process_total_disk_usage(hProcess);
+			// DiskStat disk_stat = get_process_total_disk_usage(hProcess);
 
 			std::uint64_t current_cpu_delta = total_cpu - process_last_stat.total_cpu_usage;
 			process_last_stat.total_cpu_usage = total_cpu;
@@ -164,30 +218,49 @@ void ProcessTable::update_table() {
 			process_stat.cpu_usage_percent = current_cpu_percent;
 
 			process_stat.mem_usage = mem;
+			process_stat.disk_usage = pid_disk_usage[pid];
+			// std::cerr << "pid: " << pid << " disk: " <<
+			// process_stat.disk_usage.disk_read.value_or(123456789) << " " <<
+			// process_stat.disk_usage.disk_write.value_or(123456789) << "\n";
 			process_stat.network_usage = pid_network_usage[pid];
 
-			DiskStat current_disk_delta;
-			if (disk_stat.disk_read.has_value()) {
-				current_disk_delta.disk_read =
-				disk_stat.disk_read.value() -
-				process_last_stat.disk_stat.disk_read.value_or<std::uint64_t>(0);
-			}
-			if (disk_stat.disk_write.has_value()) {
-				current_disk_delta.disk_write =
-				disk_stat.disk_write.value() -
-				process_last_stat.disk_stat.disk_write.value_or<std::uint64_t>(0);
-			}
-			// substracting network io because GetProcessIOCounter has all sort of io (not just disk)
-			if (current_disk_delta.disk_read.has_value() && process_stat.network_usage.network_recv.has_value()) {
-				current_disk_delta.disk_read = current_disk_delta.disk_read.value() - std::min(current_disk_delta.disk_read.value(), process_stat.network_usage.network_recv.value());
-			}
+			// DiskStat current_disk_delta;
+			// if (disk_stat.disk_read.has_value()) {
+			// 	current_disk_delta.disk_read =
+			// 	    disk_stat.disk_read.value() -
+			// 	    process_last_stat.disk_stat.disk_read.value_or<std::uint64_t>(0);
+			// }
+			// if (disk_stat.disk_write.has_value()) {
+			// 	current_disk_delta.disk_write =
+			// 	    disk_stat.disk_write.value() -
+			// 	    process_last_stat.disk_stat.disk_write.value_or<std::uint64_t>(0);
+			// }
+			// // substracting network io because GetProcessIOCounter has all sort of io (not just
+			// // disk)
+			// if (current_disk_delta.disk_read.has_value() &&
+			//     process_stat.network_usage.network_recv.has_value()) {
+			// 	current_disk_delta.disk_read =
+			// 	    current_disk_delta.disk_read.value() -
+			// 	    std::min(current_disk_delta.disk_read.value(),
+			// 	             process_stat.network_usage.network_recv.value());
+			// }
 
-			if (current_disk_delta.disk_write.has_value() && process_stat.network_usage.network_send.has_value()) {
-				current_disk_delta.disk_write = current_disk_delta.disk_write.value() - std::min(current_disk_delta.disk_write.value(), process_stat.network_usage.network_send.value());
-			}
-			process_last_stat.disk_stat = disk_stat;
+			// if (current_disk_delta.disk_write.has_value() &&
+			//     process_stat.network_usage.network_send.has_value()) {
+			// 	current_disk_delta.disk_write =
+			// 	    current_disk_delta.disk_write.value() -
+			// 	    std::min(current_disk_delta.disk_write.value(),
+			// 	             process_stat.network_usage.network_send.value());
+			// }
 
-			process_stat.disk_usage = current_disk_delta;
+			// std::cerr << "update_table: pid: " << pid << " " <<
+			// disk_stat.disk_read.value_or(123456789) << " vs " <<
+			// process_last_stat.disk_stat.disk_read.value_or(123456789) << " " <<
+			// disk_stat.disk_write.value_or(123456789) << " vs " <<
+			// process_last_stat.disk_stat.disk_write.value_or(123456789) << "\n";
+			// process_last_stat.disk_stat = disk_stat;
+
+			// process_stat.disk_usage = current_disk_delta;
 
 			CloseHandle(hProcess);
 		}
@@ -588,9 +661,7 @@ void ProcessTable::update_table() {
 
 #endif
 
-void ProcessTable::setup_network() {
-	pcap_handler.setup_network();
-}
+void ProcessTable::setup_network() { pcap_handler.setup_network(); }
 
 std::string ProcessTable::display_table() const {
 	constexpr uint32_t max_char_per_line = 140; // arbitrarily chosen
@@ -605,7 +676,7 @@ std::string ProcessTable::display_table() const {
 	SetConsoleMode(hOut, dwMode);
 #endif
 	res += "\033[H\033[J";
-	auto fullstat_table = this->get_sorted(ProcessTable::ProcessSortType::MEM, num_lines);
+	auto fullstat_table = this->get_sorted(ProcessTable::ProcessSortType::DISK_TOTAL, num_lines);
 #define FORMAT_STRING "{:<7} {:<10} {:<13} {:<10} {:<10} {:<10} {:<10} {:<20} {:<40}"
 	res += std::format(FORMAT_STRING, "pid", "cpu", "mem", "disk read", "disk write", "net recv",
 	                   "net send", "programm", "cmdline");
@@ -676,6 +747,22 @@ static auto get_comparator(ProcessTable::ProcessSortType type) {
 			    lhs.stat->disk_usage.disk_write.value() != rhs.stat->disk_usage.disk_write.value())
 				return lhs.stat->disk_usage.disk_write > rhs.stat->disk_usage.disk_write;
 			break;
+		case ProcessTable::ProcessSortType::DISK_TOTAL: {
+			bool left_ok = lhs.stat->disk_usage.disk_read.has_value() ||
+			               lhs.stat->disk_usage.disk_write.has_value();
+			bool right_ok = rhs.stat->disk_usage.disk_read.has_value() ||
+			                rhs.stat->disk_usage.disk_write.has_value();
+			if (!left_ok && !right_ok)
+				return lhs.pid > rhs.pid;
+			if (left_ok != right_ok)
+				return left_ok > right_ok;
+			std::uint64_t left_disk = lhs.stat->disk_usage.disk_read.value_or(0) +
+			                          lhs.stat->disk_usage.disk_write.value_or(0);
+			std::uint64_t right_disk = rhs.stat->disk_usage.disk_read.value_or(0) +
+			                           rhs.stat->disk_usage.disk_write.value_or(0);
+			return left_disk > right_disk;
+			break;
+		}
 		case ProcessTable::ProcessSortType::NETWORK_RECV:
 			if (lhs.stat->network_usage.network_recv.has_value() &&
 			    !rhs.stat->network_usage.network_recv.has_value()) {
@@ -706,6 +793,22 @@ static auto get_comparator(ProcessTable::ProcessSortType type) {
 			        rhs.stat->network_usage.network_send.value())
 				return lhs.stat->network_usage.network_send > rhs.stat->network_usage.network_send;
 			break;
+		case ProcessTable::ProcessSortType::NETWORK_TOTAL: {
+			bool left_ok = lhs.stat->network_usage.network_recv.has_value() ||
+			               lhs.stat->network_usage.network_send.has_value();
+			bool right_ok = rhs.stat->network_usage.network_recv.has_value() ||
+			                rhs.stat->network_usage.network_send.has_value();
+			if (!left_ok && !right_ok)
+				return lhs.pid > rhs.pid;
+			if (left_ok != right_ok)
+				return left_ok > right_ok;
+			std::uint64_t left_network = lhs.stat->network_usage.network_recv.value_or(0) +
+			                             lhs.stat->network_usage.network_send.value_or(0);
+			std::uint64_t right_network = rhs.stat->network_usage.network_recv.value_or(0) +
+			                              rhs.stat->network_usage.network_send.value_or(0);
+			return left_network > right_network;
+			break;
+		}
 		}
 		return lhs.pid < rhs.pid;
 	};

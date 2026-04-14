@@ -14,6 +14,50 @@ public:
 	DiskStat disk_stat;
 };
 
+#ifdef _WIN32
+
+#include <pdh.h>
+#include <pdhmsg.h>
+#include <windows.h>
+class PdhHelper {
+private:
+	PDH_HQUERY query = NULL;
+	PDH_HCOUNTER read_counter = NULL;
+	PDH_HCOUNTER write_counter = NULL;
+	PDH_HCOUNTER pid_counter = NULL;
+
+public:
+	PdhHelper();
+	~PdhHelper();
+
+	std::unordered_map<std::uint32_t, DiskStat> query_disk();
+
+	static std::vector<PDH_FMT_COUNTERVALUE_ITEM_W> get_large_array(PDH_HCOUNTER counter) {
+		DWORD buffer_size = 0;
+		DWORD item_count = 0;
+
+		PDH_STATUS status =
+		    PdhGetFormattedCounterArrayW(counter, PDH_FMT_LARGE, &buffer_size, &item_count, NULL);
+
+		if (status != PDH_MORE_DATA) {
+			return {};
+		}
+
+		std::vector<BYTE> buffer(buffer_size);
+		auto items = reinterpret_cast<PDH_FMT_COUNTERVALUE_ITEM_W*>(buffer.data());
+
+		status =
+		    PdhGetFormattedCounterArrayW(counter, PDH_FMT_LARGE, &buffer_size, &item_count, items);
+
+		if (status != ERROR_SUCCESS)
+			return {};
+
+		return std::vector<PDH_FMT_COUNTERVALUE_ITEM_W>(items, items + item_count);
+	}
+};
+
+#endif
+
 class ProcessTable {
 	// protected to use in tests
 protected:
@@ -22,9 +66,12 @@ protected:
 private:
 	std::unordered_map<std::uint32_t, ProcessLastStat> last_stat_table;
 	PcapHandler pcap_handler;
+#ifdef _WIN32
+	PdhHelper pdh_helper;
+#endif
 
 public:
-	enum ProcessSortType { CPU, MEM, DISK_READ, DISK_WRITE, NETWORK_RECV, NETWORK_SEND };
+	enum ProcessSortType { CPU, MEM, DISK_READ, DISK_WRITE, DISK_TOTAL, NETWORK_RECV, NETWORK_SEND, NETWORK_TOTAL };
 	struct ProcessFullStat {
 		std::uint32_t pid;
 		const ProcessListing* meta;

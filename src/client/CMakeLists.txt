@@ -66,6 +66,7 @@ if (WIN32)
 		oleaut32
 		wbemuuid
 		iphlpapi
+		pdh
 		psapi
 	)
 else()
