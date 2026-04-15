@@ -119,6 +119,8 @@ int client_main(int argc, char* argv[]) {
 	std::cout << "init...\n";
 	ProcessTable table;
 	table.setup_network();
+	// call update once to init disk usage
+	table.update_table();
 	using clock = std::chrono::steady_clock;
 	auto next_time = clock::now();
 	Config config;
