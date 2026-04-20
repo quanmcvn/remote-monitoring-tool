@@ -10,6 +10,26 @@ class ProcessLastStat {
 class PcapHandler {
 	-handle: pcap_t*
 	+process_packets(const uint32_t local_ip, const unordered_map<uint16_t, uint32_t>& port_to_pid_map): unordered_map<uint32_t, NetworkStat>
+	+setup_network(): void
+}
+
+class DecoderContext {
+	+get_network_packet(PEVENT_RECORD pEventRecord): NetworkPacketInfo 
+}
+
+class NetworkETWHandler {
+	+setup_network(): void
+	+get_pid_network_stat(): std::unordered_map<std::uint32_t, NetworkStat> 
+}
+
+class NetworkPacketInfo {
+	+pid: std::uint32_t 
+	+size: std::uint32_t
+	+local_addr: std::uint32_t 
+	+local_port: std::uint16_t 
+	+remote_addr: std::uint32_t 
+	+remote_port: std::uint16_t 
+	+receive: bool
 }
 
 class ProcessFullStat {
@@ -35,8 +55,10 @@ class ProcessTable {
 	-stat_table: unordered_map<uint32_t, ProcessStat>
 	-last_stat_table: unordered_map<uint32_t, ProcessLastStat>
 	-pcap_handler: PcapHandler
+	-network_etw_handler: NetworkETWHandler
 
 	+update_table(): void
+	+setup_network(): void
 	+display_table(): string 
 	+get_sorted(ProcessSortType type, uint32_t limit): vector<ProcessFullStat>
 	+get_map_program_name_resource(): unordered_map<string, ProcessStat>
@@ -46,6 +68,9 @@ ProcessTable *-- ProcessListing: list_table [*]
 ProcessTable *-- ProcessStat: stat_table [*]
 ProcessTable *-- ProcessLastStat: last_stat_table [*]
 ProcessTable *-- PcapHandler
+ProcessTable *-- NetworkETWHandler
+NetworkETWHandler --> DecoderContext: uses
+DecoderContext --> NetworkPacketInfo: uses
 ProcessTable --> CpuStat: uses
 ProcessTable --> ProcessFullStat: uses
 ProcessTable --> ProcessSortType: uses
