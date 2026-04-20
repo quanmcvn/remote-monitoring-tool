@@ -21,7 +21,11 @@ protected:
 	std::unordered_map<std::uint32_t, ProcessStat> stat_table;
 private:
 	std::unordered_map<std::uint32_t, ProcessLastStat> last_stat_table;
+#ifdef _WIN32
+	NetworkETWHandler network_etw_handler;
+#else
 	PcapHandler pcap_handler;
+#endif
 
 public:
 	enum ProcessSortType { CPU, MEM, DISK_READ, DISK_WRITE, DISK_TOTAL, NETWORK_RECV, NETWORK_SEND, NETWORK_TOTAL };

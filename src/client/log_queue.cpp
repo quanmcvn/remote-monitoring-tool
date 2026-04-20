@@ -5,6 +5,9 @@
 
 #include "common/global.hpp"
 
+#undef max
+#undef min
+
 namespace {
 const int MAX_LOG_FILE_SIZE = 10 * MB;
 }

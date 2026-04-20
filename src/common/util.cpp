@@ -93,7 +93,17 @@ std::string get_last_line_of_file(const std::string& filename) {
 	return reversed;
 }
 
+#ifdef _WIN32
+#pragma warning(push)
+#pragma warning(disable: 4244) // surpress warning C4244: '=': conversion from 'const wchar_t' to 'char', possible loss of data
+#endif
+
 std::string to_string(const std::wstring& wstr) { return std::string(wstr.begin(), wstr.end()); }
+std::string to_string(const std::vector<wchar_t>& wstr) { return std::string(wstr.begin(), wstr.end()); }
+
+#ifdef _WIN32
+#pragma warning(pop)
+#endif
 
 // convert to wstring under assumption that it's only ascii
 std::wstring to_wstring(const std::string& str) { return std::wstring(str.begin(), str.end()); }

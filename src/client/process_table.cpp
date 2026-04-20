@@ -16,6 +16,9 @@
 #include <windows.h>
 #include <winsock2.h>
 
+#undef min
+#undef max
+
 namespace {
 
 inline std::uint64_t filetime_to_uint64_t(const FILETIME& ft) {
@@ -135,9 +138,7 @@ void ProcessTable::update_table() {
 	for (const auto& socket_pid : list_socket_pid) {
 		port_to_pid_map[socket_pid.local_port] = socket_pid.pid;
 	}
-	std::unordered_map<std::uint32_t, NetworkStat> pid_network_usage;
-	std::uint32_t local_ip = list_socket_pid.begin()->local_ip;
-	pid_network_usage = this->pcap_handler.process_packets(local_ip, port_to_pid_map);
+	std::unordered_map<std::uint32_t, NetworkStat> pid_network_usage = this->network_etw_handler.get_pid_network_stat();
 
 	for (const auto& pid : list_pids) {
 		// skip reading cmdline for now
@@ -204,6 +205,10 @@ void ProcessTable::update_table() {
 			++it;
 		}
 	}
+}
+
+void ProcessTable::setup_network() {
+	network_etw_handler.setup_network();
 }
 
 #else
@@ -586,11 +591,11 @@ void ProcessTable::update_table() {
 	}
 }
 
-#endif
-
 void ProcessTable::setup_network() {
 	pcap_handler.setup_network();
 }
+
+#endif
 
 std::string ProcessTable::display_table() const {
 	constexpr uint32_t max_char_per_line = 140; // arbitrarily chosen

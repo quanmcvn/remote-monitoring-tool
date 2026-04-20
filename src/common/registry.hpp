@@ -45,7 +45,11 @@ public:
 
 	bool valid() const { return hKey != nullptr; }
 
+
+#pragma warning(push)
+#pragma warning(disable: 4244) // surpress warning C4244: '=': conversion from 'const wchar_t' to 'char', possible loss of data
 	std::string get_sub_key() const { return std::string(sub_key.begin(), sub_key.end()); }
+#pragma warning(pop)
 
 	std::error_code set_wstring(const std::wstring& name, const std::wstring& value);
 	std::optional<std::wstring> get_wstring(const std::wstring& name,

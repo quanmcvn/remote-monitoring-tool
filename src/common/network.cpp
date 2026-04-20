@@ -1,4 +1,5 @@
 #include "common/network.hpp"
+#include <iostream>
 
 #ifdef _WIN32
 
@@ -33,3 +34,15 @@ void network_close_socket(socket_t socket) {
 }
 
 #endif
+
+std::uint32_t ip_string_to_uint32(const std::string& ip) {
+	std::uint32_t ip_addr = 0;
+	int result = inet_pton(AF_INET, ip.c_str(), &ip_addr);
+	if (result == 1) {
+		return ip_addr;
+	} else {
+		std::cerr << "ip_string_to_uint32: invalid ip address: " << ip << "\n";
+		// let's just throw
+		throw std::runtime_error("ip_string_to_uint32: invalid ip address: " + ip);
+	}
+}

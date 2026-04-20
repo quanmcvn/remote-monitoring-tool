@@ -29,44 +29,14 @@ target_link_libraries(client
 )
 
 if (WIN32)
-	find_path(PCAP_INCLUDE_DIR
-		pcap.h
-		HINTS
-			ENV NPCAP_DIR
-			PATH_SUFFIXES include Include
-		REQUIRED
-	)
-
-	find_library(WPCAP_LIBRARY
-		NAMES wpcap
-		HINTS
-			ENV NPCAP_DIR
-			PATH_SUFFIXES lib Lib/x64
-		REQUIRED
-	)
-
-	find_library(PACKET_LIBRARY
-		NAMES Packet
-		HINTS
-			ENV NPCAP_DIR
-			PATH_SUFFIXES lib Lib/x64
-		REQUIRED
-	)
-
-	message(STATUS "WPCAP_LIBRARY = ${WPCAP_LIBRARY}")
-	message(STATUS "PACKET_LIBRARY = ${PACKET_LIBRARY}")
-
-	target_include_directories(client_lib PUBLIC ${PCAP_INCLUDE_DIR})
-
 	target_link_libraries(client_lib PUBLIC
-		${WPCAP_LIBRARY}
-		${PACKET_LIBRARY}
 		ws2_32
 		ole32
 		oleaut32
 		wbemuuid
 		iphlpapi
 		psapi
+		tdh
 	)
 else()
 	target_link_libraries(client_lib PUBLIC pcap)
