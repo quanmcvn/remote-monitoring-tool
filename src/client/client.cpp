@@ -33,13 +33,13 @@ void receive_server_input(ServerConnector& server_connector, EventBus& event_bus
 
 void register_send_outout_to_server(ServerConnector& server_connector, EventBus& event_bus) {
 	event_bus.subscribe([&server_connector] (const Event& event) {
-		std::cerr << "send_output_to_server: got event\n";
 		if (const NetworkSendEvent* network_event_ptr = dynamic_cast<const NetworkSendEvent*>(&event)) {
 			const NetworkSendEvent& network_event = *network_event_ptr;
-
+			std::cerr << "send_output_to_server: got event\n";
 			// spawn a thread here because send() blocks
-			std::thread t([&server_connector, &network_event] () {
-				server_connector.send_output(network_event.get_payload());
+			std::string payload = network_event.get_payload();
+			std::thread t([&server_connector, payload] () {
+				server_connector.send_output(payload);
 			});
 			t.detach();
 			// done, now return
@@ -50,7 +50,6 @@ void register_send_outout_to_server(ServerConnector& server_connector, EventBus&
 void register_recv_config(ClientLogger& client_logger, ServerConnector& server_connector, EventBus& event_bus) {
 	EventBus& event_bus_ref = event_bus;
 	event_bus.subscribe([&server_connector, &client_logger, &event_bus_ref] (const Event& event) {
-		std::cerr << "recv_config: got event\n";
 		if (const NetworkRecvEvent* network_event_ptr = dynamic_cast<const NetworkRecvEvent*>(&event)) {
 			const NetworkRecvEvent& network_event = *network_event_ptr;
 			std::string payload = network_event.get_payload();

@@ -50,15 +50,25 @@ ClientHandler::ClientHandler(int n_client_id, socket_t n_client_socket,
 }
 
 void ClientHandler::recv_input_from_client(EventBus& event_bus, ClientInfo this_client_info) {
-	try {
-		while (true) {
-			std::string message = SerializableHelper::recv_message(this_client_info.client_socket);
-			if (message == "")
-				continue;
-			event_bus.publish(NetworkRecvEvent(this_client_info.client_ip, this_client_info.client_port, message));
+	int count_fail = 0;
+	const int max_tries = 10;
+	while (true) {
+		try {
+			while (true) {
+				std::string message = SerializableHelper::recv_message(this_client_info.client_socket);
+				if (message == "")
+					continue;
+				event_bus.publish(NetworkRecvEvent(this_client_info.client_ip, this_client_info.client_port, message));
+				count_fail = 0;
+			}
+		} catch (std::exception& e) {
+			std::cerr << "recv_input_from_client: failed to recv from client #" << this_client_info.client_id << ": " << e.what() << ", trying to hold connection...\n";
+			++ count_fail;
 		}
-	} catch (std::exception& e) {
-		std::cerr << "recv_input_from_client: failed to recv from client #" << this_client_info.client_id << ": " << e.what() << " (client probably disconnected)\n";
+		if (count_fail > max_tries) {
+			std::cerr << "recv_input_from_client: failed more than " << max_tries << " times, client probably disconnected\n";
+			break;
+		}
 	}
 }
 
